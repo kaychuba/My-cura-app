@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "My-Cura",
+    "slug": "my-cura",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A5F"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.mycura.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "My-Cura uses your location to verify you are at the care recipient's address when clocking in.",
+        "NSLocationAlwaysUsageDescription": "My-Cura uses your location for GPS clock-in verification.",
+        "NSCameraUsageDescription": "My-Cura uses the camera for barcode scanning and visit photos.",
+        "NSMicrophoneUsageDescription": "My-Cura uses the microphone for voice notes.",
+        "NSFaceIDUsageDescription": "My-Cura uses Face ID for quick, secure login.",
+        "NSPhotoLibraryUsageDescription": "My-Cura accesses your photos to attach them to visit notes."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E3A5F"
+      },
+      "package": "io.mycura.app",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      ["expo-location", {
+        "locationAlwaysAndWhenInUsePermission": "Allow My-Cura to use your location for GPS clock-in."
+      }],
+      ["expo-camera", {
+        "cameraPermission": "Allow My-Cura to access the camera."
+      }],
+      ["expo-local-authentication", {
+        "faceIDPermission": "Allow My-Cura to use Face ID for authentication."
+      }]
+    ],
+    "scheme": "mycura",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@my-cura/cdk",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "synth": "cdk synth",
+    "deploy:staging": "cdk deploy --all --context env=staging",
+    "deploy:production": "cdk deploy --all --context env=production --require-approval broadening",
+    "diff": "cdk diff"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.150.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.150.0",
+    "typescript": "^5.5.4",
+    "@types/node": "^20.0.0"
+  }
+}

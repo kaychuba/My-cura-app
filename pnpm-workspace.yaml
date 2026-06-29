@@ -1,2 +1,11 @@
 packages:
+  - 'apps/*'
   - 'packages/*'
+  - 'infrastructure/cdk'
+allowedDeprecatedVersions: {}
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - 'esbuild'
+  - 'less'
+  - 'unrs-resolver'

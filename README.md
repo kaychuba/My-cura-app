@@ -1,8 +1,117 @@
-# New Nx Repository
+# My-Cura — Care Management Platform
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Enterprise SaaS care management platform for domiciliary care agencies and supported living organisations in the UK and US.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+**Status:** Active development — Phases 1–9 scaffold complete.
+
+---
+
+## Architecture
+
+| Layer | Technology |
+|---|---|
+| Backend API | NestJS (Node.js) — 24 feature modules |
+| Database | PostgreSQL 16 with Row-Level Security (multi-tenant) |
+| Cache / Queues | Redis 7 + Bull |
+| Search | OpenSearch 2.14 |
+| Real-time | Socket.io with Redis pub/sub adapter |
+| Web App | React 18 + Vite 5 + Tailwind CSS + Radix UI |
+| Mobile App | React Native (Expo SDK 51) + Expo Router |
+| Cloud | AWS (ECS Fargate, Aurora PostgreSQL Serverless v2, S3, CloudFront, SES) |
+| Auth | JWT (15m access + 30d refresh) + TOTP 2FA + Biometric + Google OAuth2 |
+| AI | Anthropic Claude API (care summaries, MAR anomaly detection) |
+| Payments | Stripe |
+| Notifications | Firebase FCM |
+| Infra-as-code | AWS CDK (TypeScript) |
+| CI/CD | GitHub Actions + Blue/Green ECS Fargate deploy |
+
+## Monorepo Structure
+
+```
+apps/
+  api/          NestJS backend
+  web/          React web dashboard (Vite)
+  mobile/       React Native (Expo)
+packages/
+  shared-types/ TypeScript types, enums, DTOs
+  shared-utils/ Haversine, date, currency, encryption, UK/US tax tables
+  ui-web/       Reusable React component library
+infrastructure/
+  docker/       Local dev (Postgres, Redis, OpenSearch, MailHog, Stripe Mock)
+  cdk/          AWS CDK stacks
+.github/
+  workflows/    CI, staging deploy, production deploy
+```
+
+## Key Features
+
+- **Multi-tenancy** — PostgreSQL Row-Level Security; single schema, per-tenant data isolation
+- **GPS Clock-in** — Haversine distance check (200m radius), accuracy check (50m threshold), timing window (±30min), duplicate detection
+- **UK Payroll** — Cumulative PAYE, Class 1 NI (employee + employer), auto-enrolment pension, SSP, SMP, student loan
+- **US Payroll** — Federal withholding (Pub 15-T annualised), SS, Medicare (+ 0.9% high-earner), FUTA, 20-state table
+- **MAR** — Digital medication administration, barcode verification, e-signature, controlled drug witness, compliance charts
+- **RBAC** — Role hierarchy: `super_admin` > `agency_owner` > `manager` > `care_worker` > `service_user` > `family`
+- **Scheduling** — RRULE-based recurring visits, drag-drop (FullCalendar), conflict detection
+- **AI Summaries** — Claude API generates weekly care summaries from visit notes + MAR data
+- **Real-time** — Socket.io gateway with JWT auth, channel-based messaging, emergency broadcast, presence tracking
+
+## Local Development
+
+```bash
+# 1. Prerequisites
+brew install node@22 && npm i -g pnpm
+
+# 2. Install dependencies
+pnpm install
+
+# 3. Start infrastructure
+docker compose -f infrastructure/docker/docker-compose.yml up -d
+
+# 4. Configure environment
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env with your keys
+
+# 5. Run database migrations
+cd apps/api && pnpm run migration:run
+
+# 6. Start all services
+pnpm run dev:api    # NestJS API on :3000
+pnpm run dev:web    # Vite web app on :5173
+pnpm run dev:mobile # Expo mobile app
+```
+
+### Services (docker-compose)
+
+| Service | URL |
+|---|---|
+| PostgreSQL | `localhost:5432` (db: mycura, user: mycura_app) |
+| Redis | `localhost:6379` |
+| OpenSearch | `localhost:9200` |
+| MailHog (SMTP) | `localhost:1025` / UI: `localhost:8025` |
+| Stripe Mock | `localhost:12111` |
+
+## API Documentation
+
+Swagger UI available at `http://localhost:3000/api/docs` when running locally.
+
+## Deployment
+
+```bash
+# Staging (auto on merge to main)
+git push origin main
+
+# Production (manual approval gate)
+gh release create v1.0.0
+# Then approve in GitHub Actions "Production Deploy" environment
+```
+
+## Mobile Build (EAS)
+
+```bash
+cd apps/mobile
+eas build --platform ios --profile staging
+eas build --platform android --profile staging
+```
 
 [Learn more about this workspace setup and its capabilities](https://nx.dev/docs/technologies/typescript/introduction?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
 ## Finish your Nx platform setup

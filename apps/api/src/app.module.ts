@@ -1,0 +1,98 @@
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
+
+import appConfig from './config/app.config';
+import databaseConfig from './config/database.config';
+import { validationSchema } from './config/validation.schema';
+
+import { AuthModule } from './modules/auth/auth.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
+import { UsersModule } from './modules/users/users.module';
+import { CareWorkersModule } from './modules/care-workers/care-workers.module';
+import { ServiceUsersModule } from './modules/service-users/service-users.module';
+import { CarePlansModule } from './modules/care-plans/care-plans.module';
+import { SchedulingModule } from './modules/scheduling/scheduling.module';
+import { ClockInModule } from './modules/clock-in/clock-in.module';
+import { VisitNotesModule } from './modules/visit-notes/visit-notes.module';
+import { MARModule } from './modules/mar/mar.module';
+import { PayrollModule } from './modules/payroll/payroll.module';
+import { LeaveModule } from './modules/leave/leave.module';
+import { HRModule } from './modules/hr/hr.module';
+import { RecruitmentModule } from './modules/recruitment/recruitment.module';
+import { TrainingModule } from './modules/training/training.module';
+import { IncidentsModule } from './modules/incidents/incidents.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { AIModule } from './modules/ai/ai.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { getDatabaseConfig } from './config/database.config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig, databaseConfig],
+      validationSchema,
+    }),
+
+    TypeOrmModule.forRootAsync({
+      useFactory: getDatabaseConfig,
+    }),
+
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 60000,
+        limit: 60,
+      },
+      {
+        name: 'auth',
+        ttl: 60000,
+        limit: 5,
+      },
+    ]),
+
+    ScheduleModule.forRoot(),
+
+    // Feature modules
+    AuthModule,
+    TenantsModule,
+    UsersModule,
+    CareWorkersModule,
+    ServiceUsersModule,
+    CarePlansModule,
+    SchedulingModule,
+    ClockInModule,
+    VisitNotesModule,
+    MARModule,
+    PayrollModule,
+    LeaveModule,
+    HRModule,
+    RecruitmentModule,
+    TrainingModule,
+    IncidentsModule,
+    MessagingModule,
+    ExpensesModule,
+    FinanceModule,
+    ReportsModule,
+    AnalyticsModule,
+    NotificationsModule,
+    StorageModule,
+    AIModule,
+    AuditModule,
+  ],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

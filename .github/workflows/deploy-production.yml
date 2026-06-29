@@ -1,0 +1,112 @@
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-west-2.amazonaws.com
+  IMAGE_NAME: mycura/api
+
+jobs:
+  verify-staging:
+    name: Verify Staging is Healthy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check staging health
+        run: |
+          curl -f https://api.staging.mycura.io/api/v1/health || exit 1
+
+  manual-approval:
+    name: Manual Approval Required
+    runs-on: ubuntu-latest
+    needs: verify-staging
+    environment: production
+    steps:
+      - name: Approved
+        run: echo "Production deploy approved"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: manual-approval
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag staging image as production
+        run: |
+          MANIFEST=$(aws ecr batch-get-image \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-ids imageTag=sha-${{ github.sha }} \
+            --query 'images[].imageManifest' \
+            --output text)
+          aws ecr put-image \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-tag ${{ github.ref_name }} \
+            --image-manifest "$MANIFEST"
+          aws ecr put-image \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-tag production \
+            --image-manifest "$MANIFEST"
+
+      - name: Snapshot production database
+        run: |
+          aws rds create-db-snapshot \
+            --db-instance-identifier mycura-production \
+            --db-snapshot-identifier mycura-pre-deploy-${{ github.ref_name }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Run DB migrations (dry run first)
+        run: |
+          aws ecs run-task \
+            --cluster mycura-production \
+            --task-definition mycura-api-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PROD_SUBNET_IDS }}],securityGroups=[${{ secrets.PROD_SG_ID }}]}" \
+            --overrides '{"containerOverrides":[{"name":"api","command":["node","dist/database/run-migrations.js","--dry-run"]}]}'
+
+      - name: Run DB migrations (production)
+        run: |
+          aws ecs run-task \
+            --cluster mycura-production \
+            --task-definition mycura-api-migrate \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PROD_SUBNET_IDS }}],securityGroups=[${{ secrets.PROD_SG_ID }}]}"
+
+      - name: Blue/Green deploy
+        run: |
+          aws ecs update-service \
+            --cluster mycura-production \
+            --service mycura-api \
+            --force-new-deployment \
+            --deployment-configuration "minimumHealthyPercent=100,maximumPercent=200" \
+            --region ${{ env.AWS_REGION }}
+          aws ecs wait services-stable \
+            --cluster mycura-production \
+            --services mycura-api \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Production smoke tests
+        run: |
+          curl -f https://api.mycura.io/api/v1/health || exit 1
+          echo "Production deploy successful: ${{ github.ref_name }}"
+
+      - name: Notify Slack
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: '{"text":"✅ Production deploy complete: ${{ github.ref_name }}"}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
