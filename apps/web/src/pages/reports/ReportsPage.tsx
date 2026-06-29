@@ -4,7 +4,7 @@ import {
   ShieldCheck, GraduationCap, Download, ChevronDown, Loader2, X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api.client';
+import { apiClient } from '../../services/api.client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,7 +162,7 @@ async function triggerDownload(
   });
   qs.set('format', format);
 
-  const response = await api.get(`${endpoint}?${qs.toString()}`, {
+  const response = await apiClient.get(`${endpoint}?${qs.toString()}`, {
     responseType: 'blob',
   });
 

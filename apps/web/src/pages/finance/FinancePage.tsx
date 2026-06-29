@@ -25,7 +25,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api.client';
+import { apiClient } from '../../services/api.client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ function GenerateInvoiceModal({ onClose, onSuccess }: { onClose: () => void; onS
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.post('/finance/invoices/generate', {
+      apiClient.post('/finance/invoices/generate', {
         serviceUserId: form.serviceUserId,
         periodStart: form.periodStart,
         periodEnd: form.periodEnd,
@@ -652,7 +652,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
 function SubscriptionTab() {
   const { data: sub, isLoading } = useQuery<Subscription | null>({
     queryKey: ['subscription'],
-    queryFn: () => api.get('/finance/subscription').then((r) => r.data),
+    queryFn: () => apiClient.get('/finance/subscription').then((r) => r.data),
   });
 
   const portalMutation = useMutation({
@@ -826,13 +826,13 @@ export function FinancePage() {
 
   const { data: kpis } = useQuery<KPIs>({
     queryKey: ['finance-kpis'],
-    queryFn: () => api.get('/finance/kpis').then((r) => r.data),
+    queryFn: () => apiClient.get('/finance/kpis').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
   const { data: chart = [] } = useQuery<ChartPoint[]>({
     queryKey: ['finance-chart'],
-    queryFn: () => api.get('/finance/revenue-chart', { params: { months: 12 } }).then((r) => r.data),
+    queryFn: () => apiClient.get('/finance/revenue-chart', { params: { months: 12 } }).then((r) => r.data),
   });
 
   const TABS: { id: Tab; label: string }[] = [

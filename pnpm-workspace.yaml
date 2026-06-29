@@ -2,10 +2,13 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'infrastructure/cdk'
-allowedDeprecatedVersions: {}
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@swc/core'
-  - 'esbuild'
-  - 'less'
-  - 'unrs-resolver'
+allowBuilds:
+  '@nestjs/core': true
+  '@parcel/watcher': true
+  bcrypt: true
+  canvas: true
+  esbuild: true
+  less: true
+  msgpackr-extract: true
+  protobufjs: true
+  unrs-resolver: true
