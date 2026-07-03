@@ -10,5 +10,6 @@ allowBuilds:
   esbuild: true
   less: true
   msgpackr-extract: true
+  nx: set this to true or false
   protobufjs: true
   unrs-resolver: true

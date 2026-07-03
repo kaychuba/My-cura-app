@@ -1,0 +1,19 @@
+# Maestro flow: care worker logs in, sees today's shifts, opens clock-in.
+# Prereqs: iOS Simulator or Android emulator with the app installed
+# (npx expo run:ios / run:android), API running with seed data, and
+# Maestro installed (https://maestro.mobile.dev — curl -Ls "https://get.maestro.mobile.dev" | bash).
+# Run: maestro test e2e/login-and-clock-in.yaml
+appId: com.mycura.mobile
+---
+- launchApp
+- tapOn:
+    text: 'Email'
+- inputText: 'worker1@demo-care.local'
+- tapOn:
+    text: 'Password'
+- inputText: 'Demo1234!'
+- tapOn: 'Sign In'
+- assertVisible: 'Dashboard'
+- assertVisible: "Today's Shifts"
+- tapOn: 'Clock In'
+- assertVisible: 'Clock In / Out'

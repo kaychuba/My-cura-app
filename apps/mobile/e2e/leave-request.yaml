@@ -1,0 +1,15 @@
+# Maestro flow: care worker requests annual leave from the profile tab.
+# See login-and-clock-in.yaml for prerequisites.
+appId: com.mycura.mobile
+---
+- launchApp
+- tapOn:
+    text: 'Email'
+- inputText: 'worker1@demo-care.local'
+- tapOn:
+    text: 'Password'
+- inputText: 'Demo1234!'
+- tapOn: 'Sign In'
+- assertVisible: 'Dashboard'
+- tapOn: 'Profile'
+- assertVisible: 'My Profile'
