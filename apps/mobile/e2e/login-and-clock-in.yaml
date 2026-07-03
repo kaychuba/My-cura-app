@@ -3,7 +3,7 @@
 # (npx expo run:ios / run:android), API running with seed data, and
 # Maestro installed (https://maestro.mobile.dev — curl -Ls "https://get.maestro.mobile.dev" | bash).
 # Run: maestro test e2e/login-and-clock-in.yaml
-appId: com.mycura.mobile
+appId: io.mycura.app
 ---
 - launchApp
 - tapOn:
