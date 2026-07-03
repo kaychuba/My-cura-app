@@ -26,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     const user = await this.userRepo.findOne({
-      where: { id: payload.sub, status: 'active' },
+      where: { id: payload.sub, status: 'active' } as Record<string, unknown>,
       select: ['id', 'email', 'role', 'tenantId', 'firstName', 'lastName'],
     });
 

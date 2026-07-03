@@ -134,9 +134,9 @@ export class IncidentsService {
     // Auto-escalate critical incidents
     let escalationLevel: EscalationLevel | undefined;
     if (dto.severity === IncidentSeverity.CRITICAL) {
-      escalationLevel = EscalationLevel.MANAGER;
+      escalationLevel = EscalationLevel.HIGH;
     } else if (dto.severity === IncidentSeverity.HIGH) {
-      escalationLevel = EscalationLevel.SENIOR;
+      escalationLevel = EscalationLevel.MEDIUM;
     }
 
     // CQC must be notified for: falls with injury, medication errors (critical), safeguarding concerns

@@ -120,10 +120,11 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 function ShiftCard({ shift, onPress }: { shift: TodaysShift; onPress: () => void }) {
   const statusColors: Record<string, string> = {
-    [ShiftStatus.SCHEDULED]: '#3B82F6',
+    [ShiftStatus.ASSIGNED]: '#3B82F6',
+    [ShiftStatus.CONFIRMED]: '#3B82F6',
     [ShiftStatus.IN_PROGRESS]: '#059669',
     [ShiftStatus.COMPLETED]: '#6B7280',
-    [ShiftStatus.MISSED]: '#DC2626',
+    [ShiftStatus.NO_SHOW]: '#DC2626',
   };
 
   return (

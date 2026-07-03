@@ -11,6 +11,7 @@
     "lib": ["es2022", "dom"],
     "module": "commonjs",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
@@ -20,11 +21,11 @@
     "strictNullChecks": true,
     "target": "es2022",
     "paths": {
-      "@my-cura/shared-types": ["packages/shared-types/src/index.ts"],
-      "@my-cura/shared-utils": ["packages/shared-utils/src/index.ts"],
-      "@my-cura/shared-validators": ["packages/shared-validators/src/index.ts"],
-      "@my-cura/ui-web": ["packages/ui-web/src/index.ts"],
-      "@my-cura/ui-native": ["packages/ui-native/src/index.ts"]
+      "@my-cura/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@my-cura/shared-utils": ["./packages/shared-utils/src/index.ts"],
+      "@my-cura/shared-validators": ["./packages/shared-validators/src/index.ts"],
+      "@my-cura/ui-web": ["./packages/ui-web/src/index.ts"],
+      "@my-cura/ui-native": ["./packages/ui-native/src/index.ts"]
     }
   }
 }

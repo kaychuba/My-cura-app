@@ -8,5 +8,5 @@ import { CareWorkersService } from './care-workers.service';
 @UseGuards(AuthGuard('jwt'))
 @Controller('care-workers')
 export class CareWorkersController {
-  constructor(private care-workersService: CareWorkersService) {}
+  constructor(private careWorkersService: CareWorkersService) {}
 }

@@ -80,7 +80,7 @@ export class MARController {
     @CurrentUser() user: AuthUser,
     @Body() dto: RecordMARDto,
   ) {
-    return this.marService.recordMAR(tenantId, user.sub, dto);
+    return this.marService.recordMAR(tenantId, user.id, dto);
   }
 
   @Get('records/:id')

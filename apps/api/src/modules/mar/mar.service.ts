@@ -7,7 +7,8 @@ import { MedicationEntity } from './entities/medication.entity';
 import { MARRecordEntity } from './entities/mar-record.entity';
 import { MARStatus, MedicationRoute } from '@my-cura/shared-types';
 import { encrypt, decrypt } from '@my-cura/shared-utils';
-import { startOfDay, endOfDay } from 'date-fns';
+const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
 export interface CreateMedicationDto {
   serviceUserId: string;
@@ -133,10 +134,10 @@ export class MARService {
     let signatureSvgEnc: string | undefined;
     let witnessSigEnc: string | undefined;
     if (dto.signatureSvg) {
-      signatureSvgEnc = encrypt(dto.signatureSvg);
+      signatureSvgEnc = encrypt(dto.signatureSvg, process.env['ENCRYPTION_KEY'] ?? '');
     }
     if (dto.witnessSvg) {
-      witnessSigEnc = encrypt(dto.witnessSvg);
+      witnessSigEnc = encrypt(dto.witnessSvg, process.env['ENCRYPTION_KEY'] ?? '');
     }
 
     const record = this.marRepo.create({
@@ -177,8 +178,8 @@ export class MARService {
       order: { scheduledAt: 'ASC' },
     });
 
-    const given = records.filter((r) => r.status === MARStatus.GIVEN || r.status === MARStatus.PRN_GIVEN).length;
-    const missed = records.filter((r) => r.status === MARStatus.OMITTED).length;
+    const given = records.filter((r) => r.status === MARStatus.GIVEN || r.status === MARStatus.SELF_ADMINISTERED).length;
+    const missed = records.filter((r) => r.status === MARStatus.NOT_AVAILABLE).length;
     const refused = records.filter((r) => r.status === MARStatus.REFUSED).length;
     const total = records.length;
 
@@ -215,9 +216,9 @@ export class MARService {
 
     return Array.from(byDate.entries()).map(([date, dayRecords]) => {
       const given = dayRecords.filter((r) =>
-        r.status === MARStatus.GIVEN || r.status === MARStatus.PRN_GIVEN,
+        r.status === MARStatus.GIVEN || r.status === MARStatus.SELF_ADMINISTERED,
       ).length;
-      const missed = dayRecords.filter((r) => r.status === MARStatus.OMITTED).length;
+      const missed = dayRecords.filter((r) => r.status === MARStatus.NOT_AVAILABLE).length;
       const refused = dayRecords.filter((r) => r.status === MARStatus.REFUSED).length;
       const total = dayRecords.length;
       return {
@@ -236,7 +237,7 @@ export class MARService {
       where: {
         tenantId,
         scheduledAt: Between(since, new Date()),
-        status: MARStatus.OMITTED,
+        status: MARStatus.NOT_AVAILABLE,
       },
       order: { scheduledAt: 'DESC' },
     });
@@ -257,7 +258,7 @@ export class MARService {
 
     const result = record as MARRecordEntity & { signatureSvg?: string };
     if (record.signatureSvgEnc) {
-      result.signatureSvg = decrypt(record.signatureSvgEnc);
+      result.signatureSvg = decrypt(record.signatureSvgEnc, process.env['ENCRYPTION_KEY'] ?? '');
     }
     return result;
   }

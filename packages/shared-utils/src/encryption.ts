@@ -1,5 +1,9 @@
 // AES-256-GCM encryption utilities
 // The key is provided by the caller (from AWS Secrets Manager in production)
+// Node-only module: the reference below pulls in Node globals (Buffer) for
+// consumers whose tsconfig does not include @types/node (web, mobile).
+
+/// <reference types="node" />
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 

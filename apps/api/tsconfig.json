@@ -2,6 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "../../dist/apps/api",
+    "ignoreDeprecations": "6.0",
+    "strictPropertyInitialization": false,
     "baseUrl": ".",
     "paths": {
       "@my-cura/shared-types": ["../../packages/shared-types/src/index.ts"],

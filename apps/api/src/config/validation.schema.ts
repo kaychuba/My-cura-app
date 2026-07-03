@@ -17,12 +17,12 @@ export const validationSchema = Joi.object({
   JWT_SECRET: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),
-    otherwise: Joi.default('dev-jwt-secret-change-in-production'),
+    otherwise: Joi.string().default('dev-jwt-secret-change-in-production'),
   }),
   JWT_REFRESH_SECRET: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),
-    otherwise: Joi.default('dev-refresh-secret-change-in-production'),
+    otherwise: Joi.string().default('dev-refresh-secret-change-in-production'),
   }),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
@@ -31,7 +31,7 @@ export const validationSchema = Joi.object({
   ENCRYPTION_KEY: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.string().length(64).required(),
-    otherwise: Joi.default('0'.repeat(64)),
+    otherwise: Joi.string().default('0'.repeat(64)),
   }),
 
   // Redis

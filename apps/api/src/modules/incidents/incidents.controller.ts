@@ -48,7 +48,7 @@ export class IncidentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateIncidentDto,
   ) {
-    return this.incidentsService.create(tenantId, user.sub, dto);
+    return this.incidentsService.create(tenantId, user.id, dto);
   }
 
   @Patch(':id')

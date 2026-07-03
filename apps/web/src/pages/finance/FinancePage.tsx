@@ -349,7 +349,7 @@ function InvoicesTab() {
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', statusFilter, page],
     queryFn: () =>
-      api
+      apiClient
         .get('/finance/invoices', {
           params: { status: statusFilter || undefined, page, limit: 15 },
         })
@@ -359,19 +359,19 @@ function InvoicesTab() {
   const refetch = () => qc.invalidateQueries({ queryKey: ['invoices'] });
 
   const sendMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/finance/invoices/${id}/send`),
+    mutationFn: (id: string) => apiClient.patch(`/finance/invoices/${id}/send`),
     onSuccess: () => { toast.success('Invoice sent'); refetch(); },
     onError: () => toast.error('Failed to send invoice'),
   });
 
   const paidMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/finance/invoices/${id}/mark-paid`),
+    mutationFn: (id: string) => apiClient.patch(`/finance/invoices/${id}/mark-paid`),
     onSuccess: () => { toast.success('Marked as paid'); refetch(); },
     onError: () => toast.error('Failed to update invoice'),
   });
 
   const voidMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/finance/invoices/${id}/void`),
+    mutationFn: (id: string) => apiClient.patch(`/finance/invoices/${id}/void`),
     onSuccess: () => { toast.success('Invoice voided'); refetch(); },
     onError: () => toast.error('Failed to void invoice'),
   });
@@ -657,7 +657,7 @@ function SubscriptionTab() {
 
   const portalMutation = useMutation({
     mutationFn: () =>
-      api
+      apiClient
         .post('/finance/subscription/portal', { returnUrl: window.location.href })
         .then((r) => r.data as { url: string }),
     onSuccess: ({ url }) => { window.location.href = url; },
@@ -666,7 +666,7 @@ function SubscriptionTab() {
 
   const checkoutMutation = useMutation({
     mutationFn: (tier: string) =>
-      api
+      apiClient
         .post('/finance/subscription/checkout', {
           tier,
           billing: 'monthly',

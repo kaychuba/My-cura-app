@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams } from 'expo-router';
-import SignatureCanvas from 'react-native-signature-canvas';
+import SignatureCanvas, { SignatureViewRef } from 'react-native-signature-canvas';
 import { apiClient } from '../../services/api.client';
 import { MARStatus, MedicationRoute } from '@my-cura/shared-types';
 import { formatDisplayTime } from '@my-cura/shared-utils';
@@ -38,7 +38,7 @@ export default function MARScreen() {
   const [scanningFor, setScanningFor] = useState<string | null>(null);
   const [signingFor, setSigningFor] = useState<string | null>(null);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const sigRef = useRef<SignatureCanvas>(null);
+  const sigRef = useRef<SignatureViewRef>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -200,8 +200,8 @@ export default function MARScreen() {
                 {[
                   { status: MARStatus.GIVEN, label: 'Given', color: '#059669' },
                   { status: MARStatus.REFUSED, label: 'Refused', color: '#DC2626' },
-                  { status: MARStatus.OMITTED, label: 'Omitted', color: '#D97706' },
-                  { status: MARStatus.PRN_NOT_REQUIRED, label: 'PRN N/R', color: '#6B7280' },
+                  { status: MARStatus.NOT_AVAILABLE, label: 'Omitted', color: '#D97706' },
+                  { status: MARStatus.SELF_ADMINISTERED, label: 'Self-admin', color: '#6B7280' },
                 ].map(({ status, label, color }) => (
                   <TouchableOpacity
                     key={status}
@@ -235,7 +235,7 @@ export default function MARScreen() {
               {/* Signature if given */}
               {isGiven && (
                 <TouchableOpacity
-                  style={[styles.signButton, record?.signatureSvg && styles.signButtonDone]}
+                  style={[styles.signButton, record?.signatureSvg ? styles.signButtonDone : null]}
                   onPress={() => setSigningFor(med.id)}
                 >
                   <Text style={styles.signButtonText}>

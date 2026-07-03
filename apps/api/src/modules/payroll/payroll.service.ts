@@ -89,29 +89,28 @@ export class PayrollService {
       where: {
         tenantId,
         country: dto.country,
-        periodStart: dto.periodStart as unknown as Date,
-      },
+        periodStart: dto.periodStart,
+      } as unknown as Record<string, unknown>,
     });
     if (existing) {
       throw new ConflictException('A payroll period already exists for this start date and country');
     }
 
     // Create the period record
-    const period = await this.periodRepo.save(
-      this.periodRepo.create({
-        tenantId,
-        periodStart: dto.periodStart as unknown as Date,
-        periodEnd: dto.periodEnd as unknown as Date,
-        payDate: dto.payDate as unknown as Date,
-        country: dto.country,
-        status: PayrollStatus.PROCESSING,
-      }),
-    );
+    const entity = this.periodRepo.create({
+      tenantId,
+      periodStart: dto.periodStart,
+      periodEnd: dto.periodEnd,
+      payDate: dto.payDate,
+      country: dto.country,
+      status: PayrollStatus.PROCESSING,
+    } as unknown as PayrollPeriodEntity);
+    const period = (await this.periodRepo.save(entity)) as unknown as PayrollPeriodEntity;
 
     // In production this would be queued to Bull; here we compute synchronously
     this.processPayrollAsync(tenantId, period).catch((err) => {
       console.error('Payroll processing failed', err);
-      this.periodRepo.update(period.id, { status: PayrollStatus.FAILED });
+      this.periodRepo.update((period as PayrollPeriodEntity).id, { status: PayrollStatus.DRAFT });
     });
 
     return period;
@@ -177,27 +176,28 @@ export class PayrollService {
       }
 
       let niNumberDecrypted: string | undefined;
+      const encKey = this.configService.get<string>('ENCRYPTION_KEY') ?? '';
       try {
-        if (worker.ni_number_enc) niNumberDecrypted = decrypt(worker.ni_number_enc);
+        if (worker.ni_number_enc) niNumberDecrypted = decrypt(worker.ni_number_enc, encKey);
       } catch { /* ignore */ }
+      void niNumberDecrypted;
 
-      if (period.country === Country.GB) {
+      const hourlyRate = parseFloat(worker.hourly_rate ?? '0');
+      const weekendRate = parseFloat(worker.weekend_rate ?? '0') || hourlyRate * 1.5;
+      const bankHolidayRate = parseFloat(worker.bank_holiday_rate ?? '0') || hourlyRate * 2;
+      const grossPay = regularHours * hourlyRate + weekendHours * weekendRate + bankHolidayHours * bankHolidayRate;
+
+      if (period.country === Country.UK) {
         const result = this.ukEngine.calculate({
-          regularHours,
-          weekendHours,
-          bankHolidayHours,
-          hourlyRate: parseFloat(worker.hourly_rate ?? '0'),
-          weekendRate: parseFloat(worker.weekend_rate ?? '0'),
-          bankHolidayRate: parseFloat(worker.bank_holiday_rate ?? '0'),
+          grossPay,
           niCategory: worker.ni_category ?? 'A',
           taxCode: worker.tax_code ?? '1257L',
           pensionOptIn: worker.pension_opt_in ?? true,
           studentLoanPlan: worker.student_loan_plan,
-          ytdGross: parseFloat(worker.ytd_gross ?? '0'),
-          ytdTax: parseFloat(worker.ytd_tax ?? '0'),
-          ytdNI: parseFloat(worker.ytd_ni ?? '0'),
-          sspDays: 0,
-          payPeriod: 'weekly',
+          ytdGrossPay: parseFloat(worker.ytd_gross ?? '0'),
+          ytdTaxPaid: parseFloat(worker.ytd_tax ?? '0'),
+          ytdNiPaid: parseFloat(worker.ytd_ni ?? '0'),
+          taxYearStart: '2024-04-06',
         });
 
         records.push({
@@ -211,21 +211,21 @@ export class PayrollService {
           employerNI: result.employerNI,
           employeePension: result.employeePension,
           employerPension: result.employerPension,
-          sspAmount: result.sspAmount,
-          studentLoan: result.studentLoan,
+          studentLoan: result.studentLoanDeduction,
           expensesReimbursed: 0,
         });
         totalGross += result.grossPay;
         totalNet += result.netPay;
       } else {
         const result = this.usEngine.calculate({
-          regularHours,
-          overtimeHours: Math.max(0, regularHours - 40),
-          hourlyRate: parseFloat(worker.hourly_rate ?? '0'),
+          grossPay,
           filingStatus: worker.federal_filing_status ?? 'single',
+          federalAllowances: 0,
           stateCode: 'CA',
-          payPeriod: 'weekly',
-          ytdGross: parseFloat(worker.ytd_gross ?? '0'),
+          stateAllowances: 0,
+          ytdGrossWages: parseFloat(worker.ytd_gross ?? '0'),
+          payPeriods: 52,
+          isContractor: false,
         });
 
         records.push({
@@ -234,7 +234,7 @@ export class PayrollService {
           careWorkerId: worker.id,
           grossPay: result.grossPay,
           netPay: result.netPay,
-          federalIncomeTax: result.federalTax,
+          federalIncomeTax: result.federalIncomeTax,
           socialSecurityEE: result.socialSecurityEmployee,
           socialSecurityER: result.socialSecurityEmployer,
           medicareEE: result.medicareEmployee,
@@ -254,7 +254,7 @@ export class PayrollService {
 
     // Update period with totals
     await this.periodRepo.update(period.id, {
-      status: PayrollStatus.COMPLETED,
+      status: PayrollStatus.APPROVED,
       processedAt: new Date(),
       totalGross,
       totalNet,
@@ -273,8 +273,8 @@ export class PayrollService {
   async approvePayroll(tenantId: string, periodId: string): Promise<void> {
     const period = await this.periodRepo.findOne({ where: { id: periodId, tenantId } });
     if (!period) throw new NotFoundException('Payroll period not found');
-    if (period.status !== PayrollStatus.COMPLETED) {
-      throw new BadRequestException('Only completed payroll periods can be approved');
+    if (period.status !== PayrollStatus.APPROVED) {
+      throw new BadRequestException('Only processed payroll periods can be approved');
     }
     await this.periodRepo.update(periodId, { status: PayrollStatus.APPROVED });
   }

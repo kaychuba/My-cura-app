@@ -14,7 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { Verify2FADto } from './dto/verify-2fa.dto';
 import { BiometricChallengeDto } from './dto/biometric-challenge.dto';
-import { UserRole } from '@my-cura/shared-types';
+import { UserRole, UserStatus } from '@my-cura/shared-types';
 import { createPublicKey, createVerify } from 'crypto';
 
 const BCRYPT_ROUNDS = 12;
@@ -75,10 +75,10 @@ export class AuthService {
       phone: dto.phone,
       role: dto.role ?? UserRole.CARE_WORKER,
       tenantId,
-      status: 'active',
-    });
+      status: UserStatus.ACTIVE,
+    } as unknown as UserEntity);
 
-    const saved = await this.userRepo.save(user);
+    const saved = (await this.userRepo.save(user)) as unknown as UserEntity;
     return this.tokenService.generateTokenPair(saved);
   }
 
@@ -185,9 +185,9 @@ export class AuthService {
         ...oauthUser,
         tenantId,
         role: UserRole.CARE_WORKER,
-        status: 'active',
-      });
-      user = await this.userRepo.save(user);
+        status: UserStatus.ACTIVE,
+      } as unknown as UserEntity);
+      user = (await this.userRepo.save(user)) as unknown as UserEntity;
     }
 
     return this.tokenService.generateTokenPair(user);

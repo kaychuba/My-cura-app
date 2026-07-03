@@ -5,6 +5,7 @@ import {
   PoundSterling, TrendingUp, Calendar, ChevronRight, Loader2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Modal } from '@my-cura/ui-web';
 import { apiClient } from '../../services/api.client';
 import { PayrollStatus, Country } from '@my-cura/shared-types';
 import { formatCurrency, formatDisplayDate } from '@my-cura/shared-utils';
@@ -25,15 +26,15 @@ interface PayrollPeriod {
 const statusConfig: Record<PayrollStatus, { label: string; color: string; icon: typeof CheckCircle }> = {
   [PayrollStatus.DRAFT]: { label: 'Draft', color: 'bg-slate-100 text-slate-600', icon: AlertCircle },
   [PayrollStatus.PROCESSING]: { label: 'Processing', color: 'bg-blue-100 text-blue-600', icon: Loader2 },
-  [PayrollStatus.COMPLETED]: { label: 'Completed', color: 'bg-amber-100 text-amber-600', icon: CheckCircle },
   [PayrollStatus.APPROVED]: { label: 'Approved', color: 'bg-green-100 text-green-600', icon: CheckCircle },
+  [PayrollStatus.PAID]: { label: 'Paid', color: 'bg-amber-100 text-amber-600', icon: CheckCircle },
   [PayrollStatus.LOCKED]: { label: 'Locked', color: 'bg-slate-100 text-slate-700', icon: Lock },
-  [PayrollStatus.FAILED]: { label: 'Failed', color: 'bg-red-100 text-red-600', icon: AlertCircle },
 };
 
 export function PayrollPage() {
   const [showRunModal, setShowRunModal] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
+  const [runForm, setRunForm] = useState({ periodStart: '', periodEnd: '', payDate: '', country: Country.UK });
   const qc = useQueryClient();
 
   const { data: periods, isLoading } = useQuery<PayrollPeriod[]>({
@@ -69,6 +70,17 @@ export function PayrollPage() {
       toast.success('Payroll locked');
     },
     onError: () => toast.error('Failed to lock payroll'),
+  });
+
+  const runMutation = useMutation({
+    mutationFn: (dto: { periodStart: string; periodEnd: string; payDate: string; country: Country }) =>
+      apiClient.post('/payroll/run', dto),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-periods'] });
+      setShowRunModal(false);
+      toast.success('Payroll run started');
+    },
+    onError: () => toast.error('Failed to start payroll run'),
   });
 
   const totalGross = periods?.reduce((s, p) => s + (p.totalGross ?? 0), 0) ?? 0;
@@ -163,12 +175,12 @@ export function PayrollPage() {
                       <span>Pay date: {formatDisplayDate(period.payDate)}</span>
                       {period.workerCount !== undefined && <span>{period.workerCount} workers</span>}
                       {period.totalGross !== undefined && (
-                        <span>Gross: {formatCurrency(period.totalGross, period.country === Country.GB ? 'GBP' : 'USD')}</span>
+                        <span>Gross: {formatCurrency(period.totalGross, period.country === Country.UK ? 'GBP' : 'USD')}</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {period.status === PayrollStatus.COMPLETED && (
+                    {period.status === PayrollStatus.DRAFT && (
                       <button
                         className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-green-600"
                         onClick={(e) => { e.stopPropagation(); approveMutation.mutate(period.id); }}
@@ -251,6 +263,56 @@ export function PayrollPage() {
           </div>
         </div>
       )}
+
+      {/* Run payroll modal */}
+      <Modal
+        open={showRunModal}
+        onClose={() => setShowRunModal(false)}
+        title="Run Payroll"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button className="text-sm text-slate-500 px-4 py-2 rounded-lg hover:bg-slate-100" onClick={() => setShowRunModal(false)}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary text-sm"
+              disabled={!runForm.periodStart || !runForm.periodEnd || !runForm.payDate || runMutation.isPending}
+              onClick={() => runMutation.mutate(runForm)}
+            >
+              {runMutation.isPending ? 'Starting…' : 'Start Run'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {[
+            { label: 'Period Start', key: 'periodStart' as const },
+            { label: 'Period End', key: 'periodEnd' as const },
+            { label: 'Pay Date', key: 'payDate' as const },
+          ].map(({ label, key }) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
+              <input
+                type="date"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                value={runForm[key]}
+                onChange={(e) => setRunForm((f) => ({ ...f, [key]: e.target.value }))}
+              />
+            </div>
+          ))}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Country</label>
+            <select
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+              value={runForm.country}
+              onChange={(e) => setRunForm((f) => ({ ...f, country: e.target.value as Country }))}
+            >
+              <option value={Country.UK}>United Kingdom</option>
+              <option value={Country.US}>United States</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -8,5 +8,5 @@ import { VisitNotesService } from './visit-notes.service';
 @UseGuards(AuthGuard('jwt'))
 @Controller('visit-notes')
 export class VisitNotesController {
-  constructor(private visit-notesService: VisitNotesService) {}
+  constructor(private visitNotesService: VisitNotesService) {}
 }

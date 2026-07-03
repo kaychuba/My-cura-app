@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Calendar, Clock, MessageSquare, User } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 
 export default function WorkerLayout() {
   return (
@@ -24,7 +24,7 @@ export default function WorkerLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size - 2} />,
+          tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size - 2} />,
           headerTitle: 'My-Cura',
         }}
       />
@@ -32,7 +32,7 @@ export default function WorkerLayout() {
         name="schedule"
         options={{
           title: 'Schedule',
-          tabBarIcon: ({ color, size }) => <Calendar color={color} size={size - 2} />,
+          tabBarIcon: ({ color, size }) => <Feather name="calendar" color={color} size={size - 2} />,
           headerTitle: 'My Schedule',
         }}
       />
@@ -40,7 +40,7 @@ export default function WorkerLayout() {
         name="clock-in"
         options={{
           title: 'Clock In',
-          tabBarIcon: ({ color, size }) => <Clock color={color} size={size - 2} />,
+          tabBarIcon: ({ color, size }) => <Feather name="clock" color={color} size={size - 2} />,
           headerTitle: 'Clock In / Out',
           tabBarStyle: { display: 'none' },
         }}
@@ -49,7 +49,7 @@ export default function WorkerLayout() {
         name="messages"
         options={{
           title: 'Messages',
-          tabBarIcon: ({ color, size }) => <MessageSquare color={color} size={size - 2} />,
+          tabBarIcon: ({ color, size }) => <Feather name="message-square" color={color} size={size - 2} />,
           headerTitle: 'Messages',
         }}
       />
@@ -57,7 +57,7 @@ export default function WorkerLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => <User color={color} size={size - 2} />,
+          tabBarIcon: ({ color, size }) => <Feather name="user" color={color} size={size - 2} />,
           headerTitle: 'My Profile',
         }}
       />

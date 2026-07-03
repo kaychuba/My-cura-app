@@ -1,10 +1,11 @@
-import { UserRole, UserStatus, EmploymentType } from './enums';
+import { UserRole, EmploymentType } from './enums';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: UserRole;
   tenantId: string;
+  partial?: boolean;
   iat?: number;
   exp?: number;
 }

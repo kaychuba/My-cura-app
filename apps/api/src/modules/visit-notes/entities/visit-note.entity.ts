@@ -43,10 +43,10 @@ export class VisitNoteEntity extends BaseEntity {
   attachmentKeys?: string[];
 
   @Column({ name: 'escalation_level', type: 'enum', enum: EscalationLevel, default: EscalationLevel.NONE })
-  escalationLevel: EscalationLevel;
+  escalationLevel: EscalationLevel = EscalationLevel.NONE;
 
   @Column({ name: 'escalation_status', default: 'none' })
-  escalationStatus: 'none' | 'raised' | 'acknowledged' | 'resolved' | 'closed';
+  escalationStatus: 'none' | 'raised' | 'acknowledged' | 'resolved' | 'closed' = 'none';
 
   @Column({ name: 'escalated_at', type: 'timestamptz', nullable: true })
   escalatedAt?: Date;
