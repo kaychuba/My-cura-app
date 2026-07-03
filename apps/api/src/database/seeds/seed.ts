@@ -105,6 +105,7 @@ async function main() {
           userId: user.id,
           employeeId,
           employmentType: EmploymentType.FULL_TIME,
+          contractStart: '2025-01-06',
           hourlyRate,
           weekendRate: hourlyRate * 1.25,
           bankHolidayRate: hourlyRate * 1.5,

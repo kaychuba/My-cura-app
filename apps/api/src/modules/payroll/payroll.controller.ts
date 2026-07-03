@@ -1,13 +1,15 @@
 import {
   Controller, Get, Post, Patch, Param, Body, UseGuards, ParseUUIDPipe, Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PayrollService, RunPayrollDto } from './payroll.service';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '@my-cura/shared-types';
+import { AuthUser, UserRole } from '@my-cura/shared-types';
 
 @ApiTags('payroll')
 @ApiBearerAuth()
@@ -68,8 +70,13 @@ export class PayrollController {
   @ApiOperation({ summary: 'Get payslips for a specific care worker' })
   getWorkerPayslips(
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthUser,
     @Param('careWorkerId', ParseUUIDPipe) careWorkerId: string,
   ) {
+    // Care workers may only see their own payslips
+    if (user.role === UserRole.CARE_WORKER && careWorkerId !== user.id) {
+      throw new ForbiddenException('You can only view your own payslips');
+    }
     return this.payrollService.getWorkerPayslips(tenantId, careWorkerId);
   }
 }

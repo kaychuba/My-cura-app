@@ -18,6 +18,15 @@ export interface RunPayrollDto {
   country: Country;
 }
 
+/** UK tax years run 6 April – 5 April. */
+export function currentUkTaxYearStart(onDate: string | Date): string {
+  const d = new Date(onDate);
+  const year = d.getMonth() > 3 || (d.getMonth() === 3 && d.getDate() >= 6)
+    ? d.getFullYear()
+    : d.getFullYear() - 1;
+  return `${year}-04-06`;
+}
+
 export interface PayrollSummary {
   period: PayrollPeriodEntity;
   records: PayrollRecordEntity[];
@@ -123,7 +132,7 @@ export class PayrollService {
        FROM care_workers cw
        JOIN users u ON u.id = cw.user_id
        WHERE cw.tenant_id = $1
-         AND cw.contract_start <= $2
+         AND (cw.contract_start IS NULL OR cw.contract_start <= $2)
          AND (cw.contract_end IS NULL OR cw.contract_end >= $3)`,
       [tenantId, period.periodEnd, period.periodStart],
     );
@@ -142,7 +151,7 @@ export class PayrollService {
          )) / 3600 AS hours_worked
        FROM clock_events ce
        JOIN shifts s ON s.id = ce.shift_id
-       JOIN care_workers cw ON cw.id = ce.care_worker_id
+       JOIN care_workers cw ON cw.user_id = ce.care_worker_id
        WHERE ce.tenant_id = $1
          AND ce.recorded_at BETWEEN $2 AND $3
        GROUP BY ce.care_worker_id, s.shift_type, s.pay_rate_override,
@@ -163,7 +172,9 @@ export class PayrollService {
     let totalNet = 0;
 
     for (const worker of workers) {
-      const workerTimesheets = tsMap.get(worker.id) ?? [];
+      // Timesheets key on the worker's user id — the id shifts and clock
+      // events carry throughout the system.
+      const workerTimesheets = tsMap.get(worker.user_id) ?? [];
       let regularHours = 0;
       let weekendHours = 0;
       let bankHolidayHours = 0;
@@ -197,13 +208,13 @@ export class PayrollService {
           ytdGrossPay: parseFloat(worker.ytd_gross ?? '0'),
           ytdTaxPaid: parseFloat(worker.ytd_tax ?? '0'),
           ytdNiPaid: parseFloat(worker.ytd_ni ?? '0'),
-          taxYearStart: '2024-04-06',
+          taxYearStart: currentUkTaxYearStart(period.periodEnd),
         });
 
         records.push({
           tenantId,
           periodId: period.id,
-          careWorkerId: worker.id,
+          careWorkerId: worker.user_id,
           grossPay: result.grossPay,
           netPay: result.netPay,
           payeTax: result.payeTax,
@@ -231,7 +242,7 @@ export class PayrollService {
         records.push({
           tenantId,
           periodId: period.id,
-          careWorkerId: worker.id,
+          careWorkerId: worker.user_id,
           grossPay: result.grossPay,
           netPay: result.netPay,
           federalIncomeTax: result.federalIncomeTax,
@@ -252,9 +263,9 @@ export class PayrollService {
       await this.recordRepo.save(records.map((r) => this.recordRepo.create(r)));
     }
 
-    // Update period with totals
+    // Computed runs land in DRAFT for review; approval is an explicit step.
     await this.periodRepo.update(period.id, {
-      status: PayrollStatus.APPROVED,
+      status: PayrollStatus.DRAFT,
       processedAt: new Date(),
       totalGross,
       totalNet,
@@ -273,8 +284,8 @@ export class PayrollService {
   async approvePayroll(tenantId: string, periodId: string): Promise<void> {
     const period = await this.periodRepo.findOne({ where: { id: periodId, tenantId } });
     if (!period) throw new NotFoundException('Payroll period not found');
-    if (period.status !== PayrollStatus.APPROVED) {
-      throw new BadRequestException('Only processed payroll periods can be approved');
+    if (period.status !== PayrollStatus.DRAFT) {
+      throw new BadRequestException('Only computed (draft) payroll periods can be approved');
     }
     await this.periodRepo.update(periodId, { status: PayrollStatus.APPROVED });
   }
