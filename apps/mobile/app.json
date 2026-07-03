@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1E3A5F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.mycura.app",
@@ -42,25 +44,49 @@
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
         "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-notifications",
-      ["expo-location", {
-        "locationAlwaysAndWhenInUsePermission": "Allow My-Cura to use your location for GPS clock-in."
-      }],
-      ["expo-camera", {
-        "cameraPermission": "Allow My-Cura to access the camera."
-      }],
-      ["expo-local-authentication", {
-        "faceIDPermission": "Allow My-Cura to use Face ID for authentication."
-      }]
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow My-Cura to use your location for GPS clock-in."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow My-Cura to access the camera."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow My-Cura to use Face ID for authentication."
+        }
+      ]
     ],
     "scheme": "mycura",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "9dfbde33-a72f-46f8-8979-010d2314b69a"
+      }
+    },
+    "owner": "curad"
   }
 }
