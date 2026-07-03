@@ -29,7 +29,7 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'is_2fa_enabled', default: false })
   is2faEnabled: boolean;
 
-  @Column({ name: 'totp_secret_enc', nullable: true })
+  @Column({ name: 'totp_secret_enc', type: 'varchar', nullable: true })
   totpSecretEnc?: string | null;
 
   @Column({ name: 'biometric_public_key', nullable: true, type: 'text' })

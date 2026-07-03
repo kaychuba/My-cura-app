@@ -146,9 +146,15 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
+      express:
+        specifier: ^4.19.2
+        version: 4.22.2
       fast-csv:
         specifier: ^5.0.1
         version: 5.0.7
@@ -264,9 +270,6 @@ importers:
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@24.13.2)(typescript@6.0.3)
-      typeorm-ts-node-commonjs:
-        specifier: ^0.3.20
-        version: 0.3.20
 
   apps/mobile:
     dependencies:
@@ -11021,10 +11024,6 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typeorm-ts-node-commonjs@0.3.20:
-    resolution: {integrity: sha512-lXjve7w7OcF3s5+dHnCsrBjUTukpVeiS0bDe5KDXWcDx8TyRW0GTTg9kjWgHzFgHgBIBBu4WGXM0iuGpEgaV9g==}
-    hasBin: true
-
   typeorm@0.3.30:
     resolution: {integrity: sha512-8T35PzjefOdqc2ZR9mwLQj0pUGp6lQhMbK2EvVMwJVJWlaoHm0v/Q6dThNOZkFchD+0yMg8gwjKM28ePiLSXSQ==}
     engines: {node: '>=16.13.0'}
@@ -18662,7 +18661,7 @@ snapshots:
 
   dotenv-expand@12.0.3:
     dependencies:
-      dotenv: 16.4.7
+      dotenv: 16.6.1
 
   dotenv@16.4.5: {}
 
@@ -24817,8 +24816,6 @@ snapshots:
       typed-array-byte-offset: 1.0.4
 
   typedarray@0.0.6: {}
-
-  typeorm-ts-node-commonjs@0.3.20: {}
 
   typeorm@0.3.30(babel-plugin-macros@3.1.0)(ioredis@5.11.1)(pg@8.22.0)(redis@4.7.1)(ts-node@10.9.2(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@24.13.2)(typescript@6.0.3)):
     dependencies:
