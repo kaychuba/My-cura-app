@@ -29,6 +29,7 @@ interface DashboardData {
 export default function WorkerDashboard() {
   const { user } = useAuthStore();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [policiesToRead, setPoliciesToRead] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
@@ -36,6 +37,12 @@ export default function WorkerDashboard() {
       const { data: result } = await apiClient.get<DashboardData>('/workers/me/dashboard');
       setData(result);
     } catch { /* fail silently — show placeholder */ }
+    try {
+      const { data: policies } = await apiClient.get<
+        { requiresAcknowledgement: boolean; acknowledgedAt: string | null }[]
+      >('/policies');
+      setPoliciesToRead(policies.filter((p) => p.requiresAcknowledgement && !p.acknowledgedAt).length);
+    } catch { /* fail silently */ }
   };
 
   useEffect(() => { load(); }, []);
@@ -98,11 +105,16 @@ export default function WorkerDashboard() {
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActionsGrid}>
           <QuickAction icon="📍" label="Clock In/Out" onPress={() => router.push('/(worker)/clock-in')} />
-          <QuickAction icon="📝" label="Visit Notes" onPress={() => router.push('/(worker)/clock-in')} />
-          <QuickAction icon="💊" label="Medication" onPress={() => router.push('/(worker)/clock-in')} />
-          <QuickAction icon="🚗" label="Expenses" onPress={() => router.push('/(worker)/clock-in')} />
           <QuickAction icon="📅" label="My Schedule" onPress={() => router.push('/(worker)/schedule')} />
-          <QuickAction icon="💬" label="Messages" onPress={() => router.push('/(worker)/messages')} />
+          <QuickAction icon="🚨" label="Report Incident" onPress={() => router.push('/(worker)/incident-report')} />
+          <QuickAction icon="🩹" label="Body Map" onPress={() => router.push('/(worker)/body-map')} />
+          <QuickAction
+            icon="📖"
+            label="Policies"
+            badge={policiesToRead}
+            onPress={() => router.push('/(worker)/policies')}
+          />
+          <QuickAction icon="🛡️" label="Speak Up" onPress={() => router.push('/(worker)/whistleblowing')} />
         </View>
       </View>
     </ScrollView>
@@ -150,11 +162,18 @@ function ShiftCard({ shift, onPress }: { shift: TodaysShift; onPress: () => void
   );
 }
 
-function QuickAction({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+function QuickAction({
+  icon, label, onPress, badge,
+}: { icon: string; label: string; onPress: () => void; badge?: number }) {
   return (
     <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.quickActionIcon}>{icon}</Text>
       <Text style={styles.quickActionLabel}>{label}</Text>
+      {!!badge && (
+        <View style={styles.quickActionBadge}>
+          <Text style={styles.quickActionBadgeText}>{badge}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -230,4 +249,10 @@ const styles = StyleSheet.create({
   },
   quickActionIcon: { fontSize: 24, marginBottom: 6 },
   quickActionLabel: { fontSize: 12, color: '#374151', fontWeight: '500', textAlign: 'center' },
+  quickActionBadge: {
+    position: 'absolute', top: 8, right: 8,
+    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+    backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center',
+  },
+  quickActionBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
 });

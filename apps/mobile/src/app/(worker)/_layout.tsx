@@ -61,6 +61,15 @@ export default function WorkerLayout() {
           headerTitle: 'My Profile',
         }}
       />
+
+      {/* Screens reachable from the dashboard/flows — hidden from the tab bar */}
+      <Tabs.Screen name="visit-notes" options={{ href: null, headerTitle: 'Visit Notes' }} />
+      <Tabs.Screen name="mar" options={{ href: null, headerTitle: 'Medication (MAR)' }} />
+      <Tabs.Screen name="incident-report" options={{ href: null, headerTitle: 'Report an Incident' }} />
+      <Tabs.Screen name="whistleblowing" options={{ href: null, headerTitle: 'Speak Up' }} />
+      <Tabs.Screen name="body-map" options={{ href: null, headerTitle: 'Body Map' }} />
+      <Tabs.Screen name="policies" options={{ href: null, headerTitle: 'Company Policies' }} />
+      <Tabs.Screen name="policy-detail" options={{ href: null, headerTitle: 'Policy' }} />
     </Tabs>
   );
 }
