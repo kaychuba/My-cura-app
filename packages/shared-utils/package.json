@@ -2,6 +2,8 @@
   "name": "@my-cura/shared-utils",
   "version": "0.0.1",
   "main": "src/index.ts",
+  "react-native": "src/browser.ts",
+  "browser": "src/browser.ts",
   "types": "src/index.ts",
   "private": true,
   "dependencies": {

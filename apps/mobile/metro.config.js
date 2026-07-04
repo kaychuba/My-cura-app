@@ -14,4 +14,17 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// shared-utils' index pulls in Node-only modules (crypto, tax engines);
+// always bundle the browser-safe entry on native.
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === '@my-cura/shared-utils') {
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(workspaceRoot, 'packages/shared-utils/src/browser.ts'),
+    };
+  }
+  return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
+};
+
 module.exports = config;
