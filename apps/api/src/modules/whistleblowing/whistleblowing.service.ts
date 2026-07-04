@@ -41,12 +41,29 @@ export class WhistleblowingService {
   async list(tenantId: string, status?: WhistleblowingStatus, page = 1, limit = 20) {
     const where: FindOptionsWhere<WhistleblowingReportEntity> = { tenantId };
     if (status) where.status = status;
-    const [data, total] = await this.reportRepo.findAndCount({
+    const [reports, total] = await this.reportRepo.findAndCount({
       where,
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
     });
+
+    // Resolve reporter names for named reports (owner-only view); anonymous
+    // reports have no reporterId to resolve — by design.
+    const reporterIds = [...new Set(reports.map((r) => r.reporterId).filter(Boolean))] as string[];
+    const names = new Map<string, string>();
+    if (reporterIds.length > 0) {
+      const rows: { id: string; name: string }[] = await this.reportRepo.manager.query(
+        `SELECT id, first_name || ' ' || last_name AS name FROM users WHERE id = ANY($1)`,
+        [reporterIds],
+      );
+      rows.forEach((r) => names.set(r.id, r.name));
+    }
+
+    const data = reports.map((r) => ({
+      ...r,
+      reporterName: r.reporterId ? names.get(r.reporterId) ?? 'Unknown user' : null,
+    }));
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 

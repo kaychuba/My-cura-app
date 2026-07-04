@@ -23,6 +23,8 @@ import { IncidentsPage } from './pages/incidents/IncidentsPage';
 import { MessagingPage } from './pages/messaging/MessagingPage';
 import { TrainingPage } from './pages/training/TrainingPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { PoliciesPage } from './pages/policies/PoliciesPage';
+import { WhistleblowingPage } from './pages/whistleblowing/WhistleblowingPage';
 
 // The web portal is for agency staff only; care workers, service users and
 // family members use the mobile app.
@@ -85,6 +87,8 @@ export default function App() {
           <Route path="/finance" element={<FinancePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/incidents" element={<IncidentsPage />} />
+          <Route path="/policies" element={<PoliciesPage />} />
+          <Route path="/whistleblowing" element={<WhistleblowingPage />} />
           <Route path="/messaging" element={<MessagingPage />} />
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/settings" element={<SettingsPage />} />

@@ -103,7 +103,29 @@ export class PoliciesService {
   async acknowledgementStatus(tenantId: string, policyId: string) {
     await this.getById(tenantId, policyId);
     const acks = await this.ackRepo.find({ where: { tenantId, policyId } });
-    return { policyId, acknowledgedCount: acks.length, acknowledgements: acks };
+    const ackByUser = new Map(acks.map((a) => [a.userId, a.acknowledgedAt]));
+
+    const staff: { id: string; name: string; role: string }[] =
+      await this.ackRepo.manager.query(
+        `SELECT id, first_name || ' ' || last_name AS name, role
+         FROM users
+         WHERE tenant_id = $1 AND status = 'active' AND deleted_at IS NULL
+         ORDER BY last_name, first_name`,
+        [tenantId],
+      );
+
+    const acknowledged = staff
+      .filter((u) => ackByUser.has(u.id))
+      .map((u) => ({ ...u, acknowledgedAt: ackByUser.get(u.id) }));
+    const pending = staff.filter((u) => !ackByUser.has(u.id));
+
+    return {
+      policyId,
+      acknowledgedCount: acknowledged.length,
+      totalStaff: staff.length,
+      acknowledged,
+      pending,
+    };
   }
 
   async archive(tenantId: string, id: string) {

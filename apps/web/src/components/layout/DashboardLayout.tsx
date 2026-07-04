@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Heart, CreditCard, Pill,
   FileText, DollarSign, BarChart3, AlertTriangle, MessageSquare,
   GraduationCap, Settings, LogOut, Bell, Menu, X, Moon, Sun,
-  ChevronRight,
+  ChevronRight, BookOpen, ShieldAlert,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 import { UserRole } from '@my-cura/shared-types';
@@ -20,6 +20,8 @@ const navigation = [
   { name: 'Finance', href: '/finance', icon: DollarSign, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
   { name: 'Analytics', href: '/analytics', icon: BarChart3, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
   { name: 'Incidents', href: '/incidents', icon: AlertTriangle, roles: 'all' },
+  { name: 'Policies', href: '/policies', icon: BookOpen, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
+  { name: 'Whistleblowing', href: '/whistleblowing', icon: ShieldAlert, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
   { name: 'Messaging', href: '/messaging', icon: MessageSquare, roles: 'all' },
   { name: 'Training', href: '/training', icon: GraduationCap, roles: 'all' },
   { name: 'Settings', href: '/settings', icon: Settings, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
