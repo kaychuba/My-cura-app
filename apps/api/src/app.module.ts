@@ -33,6 +33,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { StorageModule } from './modules/storage/storage.module';
 import { AIModule } from './modules/ai/ai.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { WhistleblowingModule } from './modules/whistleblowing/whistleblowing.module';
+import { BodyMapsModule } from './modules/body-maps/body-maps.module';
+import { PoliciesModule } from './modules/policies/policies.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { getDatabaseConfig } from './config/database.config';
 
@@ -89,6 +92,9 @@ import { getDatabaseConfig } from './config/database.config';
     StorageModule,
     AIModule,
     AuditModule,
+    WhistleblowingModule,
+    BodyMapsModule,
+    PoliciesModule,
   ],
 })
 export class AppModule implements NestModule {
