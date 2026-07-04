@@ -2,14 +2,21 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'infrastructure/cdk'
+
+# Hoisted layout: required for Expo/React Native (EAS prebuild resolves
+# @react-native/gradle-plugin with plain node resolution, which the isolated
+# symlink layout breaks).
+nodeLinker: hoisted
+
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
+  '@swc/core': true
   bcrypt: true
   canvas: true
   esbuild: true
   less: true
   msgpackr-extract: true
-  nx: set this to true or false
+  nx: true
   protobufjs: true
   unrs-resolver: true

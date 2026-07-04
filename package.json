@@ -24,7 +24,6 @@
   },
   "devDependencies": {
     "@nx/eslint": "^23.0.1",
-    "@nx/expo": "^23.0.1",
     "@nx/jest": "^23.0.1",
     "@nx/js": "23.0.1",
     "@nx/nest": "^23.0.1",
@@ -40,5 +39,6 @@
     "prettier": "^3.8.1",
     "tslib": "^2.3.0",
     "typescript": "~6.0.3"
-  }
+  },
+  "packageManager": "pnpm@11.9.0"
 }
