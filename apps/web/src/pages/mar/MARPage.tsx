@@ -31,11 +31,15 @@ interface MARRecord {
 }
 
 const statusConfig: Record<MARStatus, { label: string; color: string; icon: typeof CheckCircle }> = {
-  [MARStatus.GIVEN]: { label: 'Given', color: 'text-green-600', icon: CheckCircle },
+  [MARStatus.SCHEDULED]: { label: 'Scheduled', color: 'text-violet-600', icon: Calendar },
+  [MARStatus.GIVEN]: { label: 'Administered', color: 'text-green-600', icon: CheckCircle },
+  [MARStatus.PARENT_ADMINISTERED]: { label: 'Parent Administered', color: 'text-green-500', icon: CheckCircle },
   [MARStatus.SELF_ADMINISTERED]: { label: 'Self-Administered', color: 'text-green-500', icon: CheckCircle },
   [MARStatus.ADMINISTERED_BY_GP]: { label: 'Administered by GP', color: 'text-green-500', icon: CheckCircle },
   [MARStatus.REFUSED]: { label: 'Refused', color: 'text-red-600', icon: XCircle },
+  [MARStatus.NOT_ADMINISTERED]: { label: 'Not Administered', color: 'text-amber-600', icon: XCircle },
   [MARStatus.NOT_AVAILABLE]: { label: 'Not Available', color: 'text-amber-600', icon: AlertTriangle },
+  [MARStatus.OTHER]: { label: 'Other', color: 'text-violet-600', icon: AlertTriangle },
   [MARStatus.WASTE]: { label: 'Waste', color: 'text-slate-500', icon: AlertTriangle },
 };
 

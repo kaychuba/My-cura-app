@@ -12,11 +12,15 @@ const shiftStatusMap: Record<ShiftStatus, { color: 'blue' | 'green' | 'amber' | 
 };
 
 const marStatusMap: Record<MARStatus, { color: 'green' | 'red' | 'amber' | 'gray' | 'purple'; label: string }> = {
-  [MARStatus.GIVEN]: { color: 'green', label: 'Given' },
+  [MARStatus.SCHEDULED]: { color: 'purple', label: 'Scheduled' },
+  [MARStatus.GIVEN]: { color: 'green', label: 'Administered' },
+  [MARStatus.PARENT_ADMINISTERED]: { color: 'green', label: 'Parent Administered' },
   [MARStatus.SELF_ADMINISTERED]: { color: 'green', label: 'Self-Administered' },
   [MARStatus.ADMINISTERED_BY_GP]: { color: 'green', label: 'Administered by GP' },
   [MARStatus.REFUSED]: { color: 'red', label: 'Refused' },
+  [MARStatus.NOT_ADMINISTERED]: { color: 'amber', label: 'Not Administered' },
   [MARStatus.NOT_AVAILABLE]: { color: 'amber', label: 'Not Available' },
+  [MARStatus.OTHER]: { color: 'purple', label: 'Other' },
   [MARStatus.WASTE]: { color: 'gray', label: 'Waste' },
 };
 

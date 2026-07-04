@@ -1,6 +1,6 @@
 import { Entity, Column } from 'typeorm';
 import { BaseEntity } from '../../../database/base.entity';
-import { MedicationRoute } from '@my-cura/shared-types';
+import { MedicationFormulation, MedicationRoute } from '@my-cura/shared-types';
 
 @Entity('medications')
 export class MedicationEntity extends BaseEntity {
@@ -13,8 +13,19 @@ export class MedicationEntity extends BaseEntity {
   @Column({ name: 'generic_name', nullable: true })
   genericName?: string;
 
+  /** What the medication is for, in plain language — set by the admin. */
+  @Column({ type: 'text', nullable: true })
+  purpose?: string;
+
   @Column()
   dosage: string;
+
+  /** e.g. "1 tablet", "5 ml", "2 puffs" — set by the admin. */
+  @Column({ nullable: true })
+  quantity?: string;
+
+  @Column({ type: 'enum', enum: MedicationFormulation, nullable: true })
+  formulation?: MedicationFormulation;
 
   @Column()
   frequency: string;

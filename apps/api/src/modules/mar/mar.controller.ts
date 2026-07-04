@@ -4,14 +4,18 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
-import { MARService, CreateMedicationDto, RecordMARDto } from './mar.service';
+import {
+  MARService, CreateMedicationDto, RecordMARDto, ScheduleDoseDto, AdministerDoseDto,
+} from './mar.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
-import { AuthUser } from '@my-cura/shared-types';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { AuthUser, UserRole } from '@my-cura/shared-types';
 
 @ApiTags('mar')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('mar')
 export class MARController {
   constructor(private readonly marService: MARService) {}
@@ -69,6 +73,32 @@ export class MARController {
     @Body('delta') delta: number,
   ) {
     return this.marService.updateStockLevel(tenantId, id, delta);
+  }
+
+  // ── Scheduled doses (admin sets, carer completes) ───────────────────────────
+
+  @Post('schedule')
+  @Roles(UserRole.MANAGER)
+  @ApiOperation({ summary: 'Admin: schedule dose(s) at exact date/times for the carer to give' })
+  scheduleDoses(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: ScheduleDoseDto,
+  ) {
+    return this.marService.scheduleDoses(tenantId, dto);
+  }
+
+  @Patch('records/:id/administer')
+  @Roles(UserRole.CARE_WORKER)
+  @ApiOperation({
+    summary: 'Carer: record the outcome of a scheduled dose (initials, time completed, status)',
+  })
+  administerScheduled(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AdministerDoseDto,
+  ) {
+    return this.marService.administerScheduled(tenantId, user.id, id, dto);
   }
 
   // ── MAR Records ─────────────────────────────────────────────────────────────

@@ -12,8 +12,9 @@ export class MARRecordEntity extends BaseEntity {
   @Column({ name: 'service_user_id', type: 'uuid' })
   serviceUserId: string;
 
-  @Column({ name: 'care_worker_id', type: 'uuid' })
-  careWorkerId: string;
+  /** Null while the dose is only scheduled; set when a carer records it. */
+  @Column({ name: 'care_worker_id', type: 'uuid', nullable: true })
+  careWorkerId?: string;
 
   @Column({ name: 'shift_id', type: 'uuid', nullable: true })
   shiftId?: string;
@@ -21,8 +22,21 @@ export class MARRecordEntity extends BaseEntity {
   @Column({ name: 'scheduled_at', type: 'timestamptz' })
   scheduledAt: Date;
 
+  /** The time the carer says they gave it (their "time completed" selection). */
   @Column({ name: 'administered_at', type: 'timestamptz', nullable: true })
   administeredAt?: Date;
+
+  /** Server timestamp of when the carer submitted the record. */
+  @Column({ name: 'recorded_at', type: 'timestamptz', nullable: true })
+  recordedAt?: Date;
+
+  /** Carer's initials, entered as their signature. */
+  @Column({ nullable: true })
+  initials?: string;
+
+  /** Witness initials for controlled drugs (when no witness account is picked). */
+  @Column({ name: 'witness_initials', nullable: true })
+  witnessInitials?: string;
 
   @Column({ type: 'enum', enum: MARStatus })
   status: MARStatus;

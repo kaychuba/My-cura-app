@@ -10,10 +10,13 @@ import { UserEntity } from '../../modules/users/entities/user.entity';
 import { CareWorkerEntity } from '../../modules/care-workers/entities/care-worker.entity';
 import { ServiceUserEntity } from '../../modules/service-users/entities/service-user.entity';
 import { MedicationEntity } from '../../modules/mar/entities/medication.entity';
+import { MARRecordEntity } from '../../modules/mar/entities/mar-record.entity';
 import { ShiftEntity } from '../../modules/scheduling/entities/shift.entity';
 import {
   Country,
   EmploymentType,
+  MARStatus,
+  MedicationFormulation,
   MedicationRoute,
   ShiftStatus,
   ShiftType,
@@ -33,6 +36,7 @@ async function main() {
   const careWorkers = dataSource.getRepository(CareWorkerEntity);
   const serviceUsers = dataSource.getRepository(ServiceUserEntity);
   const medications = dataSource.getRepository(MedicationEntity);
+  const marRecords = dataSource.getRepository(MARRecordEntity);
   const shifts = dataSource.getRepository(ShiftEntity);
 
   // ── Tenant ────────────────────────────────────────────────────────────────
@@ -161,21 +165,35 @@ async function main() {
     lon: -2.2189,
   });
 
-  // ── Medications ───────────────────────────────────────────────────────────
-  const meds: Array<[ServiceUserEntity, string, string, string, string[], MedicationRoute, boolean]> = [
-    [su1, 'Paracetamol', '500mg', 'Twice daily', ['08:00', '20:00'], MedicationRoute.ORAL, false],
-    [su1, 'Amlodipine', '5mg', 'Once daily', ['08:00'], MedicationRoute.ORAL, false],
-    [su2, 'Morphine sulfate', '10mg', 'Twice daily', ['09:00', '21:00'], MedicationRoute.ORAL, true],
+  // ── Medications (admin-set: purpose, dose, quantity, formulation, route) ──
+  const meds: Array<[
+    ServiceUserEntity, string, string, string, string,
+    MedicationFormulation, string, string[], MedicationRoute, boolean,
+  ]> = [
+    [su1, 'Paracetamol', 'Pain relief and fever reduction', '500mg', '1 tablet',
+      MedicationFormulation.TABLET, 'Twice daily', ['08:00', '20:00'], MedicationRoute.ORAL, false],
+    [su1, 'Amlodipine', 'Lowers blood pressure', '5mg', '1 tablet',
+      MedicationFormulation.TABLET, 'Once daily', ['08:00'], MedicationRoute.ORAL, false],
+    [su1, 'Lactulose', 'Relieves constipation', '10ml', '10 ml',
+      MedicationFormulation.LIQUID, 'Once daily', ['12:00'], MedicationRoute.ORAL, false],
+    [su2, 'Morphine sulfate', 'Severe pain management', '10mg', '5 ml',
+      MedicationFormulation.LIQUID, 'Twice daily', ['09:00', '21:00'], MedicationRoute.ORAL, true],
+    [su2, 'Glycerin', 'Relieves constipation', '4g', '1 suppository',
+      MedicationFormulation.SUPPOSITORY, 'As required', ['09:00'], MedicationRoute.RECTAL, false],
   ];
-  for (const [su, name, dosage, frequency, timesOfDay, route, isControlled] of meds) {
-    const existing = await medications.findOne({ where: { tenantId, serviceUserId: su.id, name } });
-    if (!existing) {
-      await medications.save(
+  const medEntities: MedicationEntity[] = [];
+  for (const [su, name, purpose, dosage, quantity, formulation, frequency, timesOfDay, route, isControlled] of meds) {
+    let med = await medications.findOne({ where: { tenantId, serviceUserId: su.id, name } });
+    if (!med) {
+      med = await medications.save(
         medications.create({
           tenantId,
           serviceUserId: su.id,
           name,
+          purpose,
           dosage,
+          quantity,
+          formulation,
           frequency,
           timesOfDay,
           route,
@@ -185,6 +203,44 @@ async function main() {
         } as DeepPartial<MedicationEntity>),
       );
       console.log('Created medication', name, 'for', su.firstName);
+    } else if (!med.purpose) {
+      // Existing databases: backfill the new admin-set fields
+      Object.assign(med, { purpose, quantity, formulation });
+      med = await medications.save(med);
+      console.log('Backfilled medication details for', name);
+    }
+    medEntities.push(med);
+  }
+
+  // ── Today's scheduled doses (admin sets the exact date & time) ────────────
+  const doseDayStart = new Date();
+  doseDayStart.setHours(0, 0, 0, 0);
+  const doseDayEnd = new Date(doseDayStart);
+  doseDayEnd.setDate(doseDayEnd.getDate() + 1);
+
+  const scheduledToday = await marRecords
+    .createQueryBuilder('r')
+    .where('r.tenant_id = :tenantId', { tenantId })
+    .andWhere('r.scheduled_at >= :doseDayStart AND r.scheduled_at < :doseDayEnd', { doseDayStart, doseDayEnd })
+    .getCount();
+
+  if (scheduledToday === 0) {
+    for (const med of medEntities) {
+      for (const hhmm of med.timesOfDay ?? []) {
+        const [h, m] = hhmm.split(':').map(Number);
+        const scheduledAt = new Date(doseDayStart);
+        scheduledAt.setHours(h, m, 0, 0);
+        await marRecords.save(
+          marRecords.create({
+            tenantId,
+            medicationId: med.id,
+            serviceUserId: med.serviceUserId,
+            scheduledAt,
+            status: MARStatus.SCHEDULED,
+          } as DeepPartial<MARRecordEntity>),
+        );
+      }
+      console.log('Scheduled today\'s doses for', med.name);
     }
   }
 

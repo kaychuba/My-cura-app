@@ -1,406 +1,571 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, TextInput, Modal,
+  Alert, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import SignatureCanvas, { SignatureViewRef } from 'react-native-signature-canvas';
+import { format, parseISO } from 'date-fns';
 import { apiClient } from '../../services/api.client';
-import { MARStatus, MedicationRoute } from '@my-cura/shared-types';
-import { formatDisplayTime } from '@my-cura/shared-utils';
+import { useAuthStore } from '../../stores/auth.store';
+import { MARStatus } from '@my-cura/shared-types';
+import { ServiceUserPicker, ServiceUserOption } from '../../components/ServiceUserPicker';
+import { colors } from '../../theme';
 
 interface Medication {
   id: string;
   name: string;
+  purpose?: string;
   dosage: string;
-  route: MedicationRoute;
-  timesOfDay?: string[];
+  quantity?: string;
+  formulation?: string;
+  route: string;
   isControlled: boolean;
-  barcode?: string;
 }
 
 interface MARRecord {
+  id: string;
   medicationId: string;
-  status: MARStatus | null;
-  barcodeVerified: boolean;
-  signatureSvg: string | null;
-  notes: string;
-  reasonNotGiven: string;
+  scheduledAt: string;
+  administeredAt?: string;
+  recordedAt?: string;
+  status: MARStatus;
+  initials?: string;
+  witnessInitials?: string;
+  reasonNotGiven?: string;
+  notes?: string;
 }
 
+/** The outcomes a carer can record, in display order. */
+const OUTCOMES: { status: MARStatus; label: string; color: string }[] = [
+  { status: MARStatus.GIVEN, label: 'Administered', color: '#059669' },
+  { status: MARStatus.PARENT_ADMINISTERED, label: 'Parent Administered', color: '#0D9488' },
+  { status: MARStatus.REFUSED, label: 'Refused', color: '#DC2626' },
+  { status: MARStatus.NOT_ADMINISTERED, label: 'Not Administered', color: '#D97706' },
+  { status: MARStatus.OTHER, label: 'Other', color: '#7C3AED' },
+];
+
+const OUTCOME_META = Object.fromEntries(OUTCOMES.map((o) => [o.status, o]));
+
 export default function MARScreen() {
-  const { serviceUserId, shiftId } = useLocalSearchParams<{ serviceUserId: string; shiftId: string }>();
+  const params = useLocalSearchParams<{ serviceUserId?: string }>();
+  const { user } = useAuthStore();
+  const [pickedSU, setPickedSU] = useState<ServiceUserOption | null>(null);
+  const serviceUserId = params.serviceUserId ?? pickedSU?.id;
+
   const [medications, setMedications] = useState<Medication[]>([]);
-  const [records, setRecords] = useState<Map<string, MARRecord>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [scanningFor, setScanningFor] = useState<string | null>(null);
-  const [signingFor, setSigningFor] = useState<string | null>(null);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const sigRef = useRef<SignatureViewRef>(null);
+  const [records, setRecords] = useState<MARRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [recording, setRecording] = useState<MARRecord | null>(null);
 
   const load = useCallback(async () => {
+    if (!serviceUserId) return;
     setLoading(true);
     try {
-      const { data } = await apiClient.get<{ medications: Medication[] }>(
+      const { data } = await apiClient.get<{ medications: Medication[]; records: MARRecord[] }>(
         `/mar/daily?serviceUserId=${serviceUserId}&date=${new Date().toISOString().split('T')[0]}`,
       );
       setMedications(data.medications);
-      const initial = new Map<string, MARRecord>();
-      for (const med of data.medications) {
-        initial.set(med.id, {
-          medicationId: med.id,
-          status: null,
-          barcodeVerified: false,
-          signatureSvg: null,
-          notes: '',
-          reasonNotGiven: '',
-        });
-      }
-      setRecords(initial);
+      setRecords(data.records);
     } catch {
-      Alert.alert('Error', 'Could not load medications');
+      Alert.alert('Error', 'Could not load the MAR chart');
     } finally {
       setLoading(false);
     }
   }, [serviceUserId]);
 
-  React.useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  const updateRecord = (medicationId: string, update: Partial<MARRecord>) => {
-    setRecords((prev) => {
-      const next = new Map(prev);
-      const existing = next.get(medicationId) ?? {
-        medicationId, status: null, barcodeVerified: false,
-        signatureSvg: null, notes: '', reasonNotGiven: '',
-      };
-      next.set(medicationId, { ...existing, ...update });
-      return next;
-    });
-  };
+  const medById = useMemo(
+    () => new Map(medications.map((m) => [m.id, m])),
+    [medications],
+  );
+  const due = records
+    .filter((r) => r.status === MARStatus.SCHEDULED)
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
+  const completed = records
+    .filter((r) => r.status !== MARStatus.SCHEDULED)
+    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt));
 
-  const handleBarcodeScan = async (medicationId: string) => {
-    if (!cameraPermission?.granted) {
-      await requestCameraPermission();
-    }
-    setScanningFor(medicationId);
-  };
-
-  const onBarcodeScanned = ({ data: scannedCode }: { data: string }) => {
-    if (!scanningFor) return;
-    const med = medications.find((m) => m.id === scanningFor);
-    if (med?.barcode && med.barcode !== scannedCode) {
-      Alert.alert('Barcode Mismatch', 'The scanned barcode does not match the expected medication.');
-    } else {
-      updateRecord(scanningFor, { barcodeVerified: true });
-    }
-    setScanningFor(null);
-  };
-
-  const handleSignature = (sig: string) => {
-    if (!signingFor) return;
-    updateRecord(signingFor, { signatureSvg: sig });
-    setSigningFor(null);
-  };
-
-  const submitAll = async () => {
-    const pending = Array.from(records.values()).filter((r) => r.status !== null);
-    if (pending.length === 0) {
-      Alert.alert('Nothing to Submit', 'Please record the status for at least one medication.');
-      return;
-    }
-
-    const unsigned = pending.filter((r) => r.status === MARStatus.GIVEN && !r.signatureSvg);
-    if (unsigned.length > 0) {
-      Alert.alert('Signature Required', 'Please sign for all medications marked as given.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await Promise.all(
-        pending.map((r) =>
-          apiClient.post('/mar/records', {
-            medicationId: r.medicationId,
-            serviceUserId,
-            shiftId,
-            scheduledAt: new Date().toISOString(),
-            status: r.status,
-            signatureSvg: r.signatureSvg,
-            barcodeVerified: r.barcodeVerified,
-            reasonNotGiven: r.status !== MARStatus.GIVEN ? r.reasonNotGiven : undefined,
-            notes: r.notes || undefined,
-          }),
-        ),
-      );
-      Alert.alert('MAR Submitted', `${pending.length} medication record(s) saved successfully.`);
-      load();
-    } catch {
-      Alert.alert('Error', 'Failed to submit MAR records. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
+  if (!serviceUserId) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4C1D95" />
-        <Text style={styles.loadingText}>Loading medications...</Text>
+      <View style={styles.pickerWrap}>
+        <Text style={styles.pickerHint}>
+          Choose who you are giving medication to:
+        </Text>
+        <ServiceUserPicker value={pickedSU} onChange={setPickedSU} />
       </View>
     );
   }
 
-  if (medications.length === 0) {
+  if (loading && medications.length === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.emptyIcon}>💊</Text>
-        <Text style={styles.emptyTitle}>No medications</Text>
-        <Text style={styles.emptySub}>No active medications for this service user.</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading MAR chart...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.flex}>
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        {medications.map((med) => {
-          const record = records.get(med.id);
-          const isGiven = record?.status === MARStatus.GIVEN;
-          const isNotGiven = record?.status && record.status !== MARStatus.GIVEN;
-
-          return (
-            <View key={med.id} style={styles.medCard}>
-              {/* Header */}
-              <View style={styles.medHeader}>
-                <View style={styles.medInfo}>
-                  <Text style={styles.medName}>{med.name}</Text>
-                  <Text style={styles.medDetail}>{med.dosage} · {med.route}</Text>
-                  {med.isControlled && (
-                    <View style={styles.cdBadge}>
-                      <Text style={styles.cdText}>⚠️ Controlled Drug</Text>
-                    </View>
-                  )}
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {/* ── Medication table (all values set by the admin) ── */}
+      <Text style={styles.sectionTitle}>Medication Chart</Text>
+      {medications.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>No active medications for this service user.</Text>
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableScroll}>
+          <View>
+            <View style={[styles.tableRow, styles.tableHeader]}>
+              <Text style={[styles.th, styles.colName]}>Medication</Text>
+              <Text style={[styles.th, styles.colPurpose]}>Function</Text>
+              <Text style={[styles.th, styles.colSmall]}>Dose</Text>
+              <Text style={[styles.th, styles.colSmall]}>Quantity</Text>
+              <Text style={[styles.th, styles.colSmall]}>Formulation</Text>
+              <Text style={[styles.th, styles.colSmall]}>Route</Text>
+            </View>
+            {medications.map((m, i) => (
+              <View key={m.id} style={[styles.tableRow, i % 2 === 1 && styles.tableRowAlt]}>
+                <View style={styles.colName}>
+                  <Text style={styles.tdName}>{m.name}</Text>
+                  {m.isControlled && <Text style={styles.cdTag}>Controlled drug</Text>}
                 </View>
-                {med.barcode && (
-                  <TouchableOpacity
-                    style={[styles.scanButton, record?.barcodeVerified && styles.scanButtonDone]}
-                    onPress={() => handleBarcodeScan(med.id)}
-                  >
-                    <Text style={styles.scanButtonText}>
-                      {record?.barcodeVerified ? '✓ Scanned' : '📷 Scan'}
+                <Text style={[styles.td, styles.colPurpose]}>{m.purpose ?? '—'}</Text>
+                <Text style={[styles.td, styles.colSmall]}>{m.dosage}</Text>
+                <Text style={[styles.td, styles.colSmall]}>{m.quantity ?? '—'}</Text>
+                <Text style={[styles.td, styles.colSmall, styles.capitalize]}>{m.formulation ?? '—'}</Text>
+                <Text style={[styles.td, styles.colSmall, styles.capitalize]}>{m.route}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      )}
+
+      {/* ── Due today (admin-scheduled doses awaiting the carer) ── */}
+      <Text style={styles.sectionTitle}>Due Today</Text>
+      <Text style={styles.sectionSub}>Times set by your manager — tap a dose to record it.</Text>
+      {due.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Feather name="check-circle" size={20} color={colors.success} />
+          <Text style={styles.emptyText}>
+            Nothing waiting. Doses appear here when your manager schedules them.
+          </Text>
+        </View>
+      ) : (
+        due.map((r) => {
+          const med = medById.get(r.medicationId);
+          return (
+            <TouchableOpacity
+              key={r.id}
+              style={styles.dueCard}
+              onPress={() => setRecording(r)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.dueTimeBox}>
+                <Text style={styles.dueTime}>{format(parseISO(r.scheduledAt), 'HH:mm')}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dueMedName}>{med?.name ?? 'Medication'}</Text>
+                <Text style={styles.dueMedDetail}>
+                  {[med?.dosage, med?.quantity, med?.formulation].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              <View style={styles.recordButton}>
+                <Text style={styles.recordButtonText}>Record</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })
+      )}
+
+      {/* ── Completed today (initials + both timestamps) ── */}
+      {completed.length > 0 && (
+        <>
+          <Text style={styles.sectionTitle}>Completed Today</Text>
+          {completed.map((r) => {
+            const med = medById.get(r.medicationId);
+            const meta = OUTCOME_META[r.status];
+            return (
+              <View key={r.id} style={styles.doneCard}>
+                <View style={styles.doneHeader}>
+                  <Text style={styles.doneMedName}>{med?.name ?? 'Medication'}</Text>
+                  <View style={[styles.outcomeBadge, { backgroundColor: (meta?.color ?? colors.textMuted) + '22' }]}>
+                    <Text style={[styles.outcomeBadgeText, { color: meta?.color ?? colors.textMuted }]}>
+                      {meta?.label ?? r.status.replace(/_/g, ' ')}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.doneMetaRow}>
+                  <Feather name="clock" size={13} color={colors.textSecondary} />
+                  <Text style={styles.doneMeta}>
+                    Due {format(parseISO(r.scheduledAt), 'HH:mm')}
+                    {r.administeredAt ? ` · Completed ${format(parseISO(r.administeredAt), 'HH:mm')}` : ''}
+                  </Text>
+                </View>
+                {!!r.recordedAt && (
+                  <View style={styles.doneMetaRow}>
+                    <Feather name="check" size={13} color={colors.textSecondary} />
+                    <Text style={styles.doneMeta}>
+                      Recorded {format(parseISO(r.recordedAt), 'HH:mm, d MMM')}
+                    </Text>
+                  </View>
+                )}
+                {!!r.initials && (
+                  <View style={styles.doneMetaRow}>
+                    <Feather name="edit-2" size={13} color={colors.textSecondary} />
+                    <Text style={styles.doneMeta}>
+                      Signed {r.initials}
+                      {r.witnessInitials ? ` · Witness ${r.witnessInitials}` : ''}
+                    </Text>
+                  </View>
+                )}
+                {!!r.reasonNotGiven && (
+                  <Text style={styles.doneReason}>Reason: {r.reasonNotGiven}</Text>
                 )}
               </View>
+            );
+          })}
+        </>
+      )}
 
-              {/* Status buttons */}
-              <View style={styles.statusRow}>
-                {[
-                  { status: MARStatus.GIVEN, label: 'Given', color: '#059669' },
-                  { status: MARStatus.REFUSED, label: 'Refused', color: '#DC2626' },
-                  { status: MARStatus.NOT_AVAILABLE, label: 'Omitted', color: '#D97706' },
-                  { status: MARStatus.SELF_ADMINISTERED, label: 'Self-admin', color: '#6B7280' },
-                ].map(({ status, label, color }) => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[
-                      styles.statusButton,
-                      record?.status === status && { backgroundColor: color, borderColor: color },
-                    ]}
-                    onPress={() => updateRecord(med.id, { status })}
-                  >
-                    <Text style={[
-                      styles.statusButtonText,
-                      record?.status === status && { color: '#FFFFFF' },
-                    ]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+      <RecordDoseModal
+        record={recording}
+        medication={recording ? medById.get(recording.medicationId) : undefined}
+        defaultInitials={`${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase()}
+        onClose={() => setRecording(null)}
+        onSaved={() => { setRecording(null); load(); }}
+      />
+    </ScrollView>
+  );
+}
 
-              {/* Reason if not given */}
-              {isNotGiven && (
-                <TextInput
-                  style={styles.reasonInput}
-                  placeholder="Reason for not giving..."
-                  value={record?.reasonNotGiven}
-                  onChangeText={(t) => updateRecord(med.id, { reasonNotGiven: t })}
-                  multiline
-                />
-              )}
+/** Compact dependency-free time picker: chevrons step hours / 5-minute blocks. */
+function TimeCompletedPicker({ value, onChange }: { value: Date; onChange: (d: Date) => void }) {
+  const step = (unit: 'h' | 'm', delta: number) => {
+    const next = new Date(value);
+    if (unit === 'h') next.setHours(next.getHours() + delta);
+    else next.setMinutes(next.getMinutes() + delta);
+    onChange(next);
+  };
 
-              {/* Signature if given */}
-              {isGiven && (
-                <TouchableOpacity
-                  style={[styles.signButton, record?.signatureSvg ? styles.signButtonDone : null]}
-                  onPress={() => setSigningFor(med.id)}
-                >
-                  <Text style={styles.signButtonText}>
-                    {record?.signatureSvg ? '✓ Signed' : '✍️ Add Signature'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
-
-      {/* Submit button */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-          onPress={submitAll}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitText}>Submit MAR Records</Text>
-          )}
+  return (
+    <View style={styles.timePicker}>
+      <View style={styles.timeUnit}>
+        <TouchableOpacity onPress={() => step('h', 1)} hitSlop={8}>
+          <Feather name="chevron-up" size={22} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.timeDigits}>{format(value, 'HH')}</Text>
+        <TouchableOpacity onPress={() => step('h', -1)} hitSlop={8}>
+          <Feather name="chevron-down" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
-
-      {/* Barcode scanner modal */}
-      <Modal visible={!!scanningFor} animationType="slide" onRequestClose={() => setScanningFor(null)}>
-        <View style={styles.flex}>
-          {cameraPermission?.granted ? (
-            <CameraView
-              style={styles.flex}
-              barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'qr', 'datamatrix'] }}
-              onBarcodeScanned={onBarcodeScanned}
-            >
-              <View style={styles.scanOverlay}>
-                <View style={styles.scanFrame} />
-                <Text style={styles.scanInstructions}>Align barcode within the frame</Text>
-                <TouchableOpacity style={styles.cancelScanButton} onPress={() => setScanningFor(null)}>
-                  <Text style={styles.cancelScanText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </CameraView>
-          ) : (
-            <View style={styles.centered}>
-              <Text>Camera permission required</Text>
-              <TouchableOpacity onPress={requestCameraPermission} style={styles.submitButton}>
-                <Text style={styles.submitText}>Grant Permission</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      {/* Signature modal */}
-      <Modal visible={!!signingFor} animationType="slide" onRequestClose={() => setSigningFor(null)}>
-        <View style={styles.flex}>
-          <View style={styles.sigHeader}>
-            <Text style={styles.sigTitle}>Care Worker Signature</Text>
-            <TouchableOpacity onPress={() => { sigRef.current?.clearSignature(); }}>
-              <Text style={styles.sigClear}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-          <SignatureCanvas
-            ref={sigRef}
-            onOK={handleSignature}
-            onEmpty={() => Alert.alert('Signature Required', 'Please sign before confirming.')}
-            descriptionText="Sign here"
-            clearText="Clear"
-            confirmText="Confirm"
-            style={{ flex: 1 }}
-            webStyle=".m-signature-pad { box-shadow: none; border: none; } .m-signature-pad--footer { background-color: #4C1D95; }"
-          />
-          <TouchableOpacity style={styles.cancelSigButton} onPress={() => setSigningFor(null)}>
-            <Text style={styles.cancelSigText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+      <Text style={styles.timeColon}>:</Text>
+      <View style={styles.timeUnit}>
+        <TouchableOpacity onPress={() => step('m', 5)} hitSlop={8}>
+          <Feather name="chevron-up" size={22} color={colors.primary} />
+        </TouchableOpacity>
+        <Text style={styles.timeDigits}>{format(value, 'mm')}</Text>
+        <TouchableOpacity onPress={() => step('m', -5)} hitSlop={8}>
+          <Feather name="chevron-down" size={22} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity style={styles.nowButton} onPress={() => onChange(new Date())}>
+        <Text style={styles.nowButtonText}>Now</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
+function RecordDoseModal({ record, medication, defaultInitials, onClose, onSaved }: {
+  record: MARRecord | null;
+  medication?: Medication;
+  defaultInitials: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [outcome, setOutcome] = useState<MARStatus | null>(null);
+  const [timeCompleted, setTimeCompleted] = useState(new Date());
+  const [initials, setInitials] = useState(defaultInitials);
+  const [witnessInitials, setWitnessInitials] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (record) {
+      setOutcome(null);
+      setTimeCompleted(new Date());
+      setInitials(defaultInitials);
+      setWitnessInitials('');
+      setReason('');
+    }
+  }, [record, defaultInitials]);
+
+  if (!record) return null;
+
+  const needsWitness = !!medication?.isControlled && outcome === MARStatus.GIVEN;
+  const isOther = outcome === MARStatus.OTHER;
+  const showOptionalReason =
+    outcome === MARStatus.REFUSED || outcome === MARStatus.NOT_ADMINISTERED;
+
+  const save = async () => {
+    if (!outcome) {
+      Alert.alert('Select an outcome', 'Please choose what happened with this dose.');
+      return;
+    }
+    if (!initials.trim()) {
+      Alert.alert('Initials required', 'Enter your initials as your signature.');
+      return;
+    }
+    if (isOther && !reason.trim()) {
+      Alert.alert('Reason required', 'Please state the reason when selecting Other.');
+      return;
+    }
+    if (needsWitness && !witnessInitials.trim()) {
+      Alert.alert('Witness required', 'A controlled drug needs witness initials.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiClient.patch(`/mar/records/${record.id}/administer`, {
+        status: outcome,
+        timeCompleted: timeCompleted.toISOString(),
+        initials: initials.trim(),
+        reason: reason.trim() || undefined,
+        witnessInitials: needsWitness ? witnessInitials.trim() : undefined,
+      });
+      Alert.alert('Recorded', 'The dose has been recorded on the MAR chart.');
+      onSaved();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      Alert.alert('Error', msg ?? 'Could not save this record. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalSheet}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>{medication?.name ?? 'Record dose'}</Text>
+            <Text style={styles.modalSub}>
+              Due {format(parseISO(record.scheduledAt), 'HH:mm, EEE d MMM')}
+              {medication ? ` · ${[medication.dosage, medication.quantity].filter(Boolean).join(' · ')}` : ''}
+            </Text>
+
+            <Text style={styles.fieldLabel}>Outcome</Text>
+            <View style={styles.outcomeWrap}>
+              {OUTCOMES.map((o) => (
+                <TouchableOpacity
+                  key={o.status}
+                  style={[
+                    styles.outcomeChip,
+                    outcome === o.status && { backgroundColor: o.color, borderColor: o.color },
+                  ]}
+                  onPress={() => setOutcome(o.status)}
+                >
+                  <Text style={[styles.outcomeChipText, outcome === o.status && { color: '#FFFFFF' }]}>
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {isOther && (
+              <>
+                <Text style={styles.fieldLabel}>Reason *</Text>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Please state the reason..."
+                  placeholderTextColor={colors.textMuted}
+                  value={reason}
+                  onChangeText={setReason}
+                  multiline
+                />
+              </>
+            )}
+            {showOptionalReason && (
+              <>
+                <Text style={styles.fieldLabel}>Reason (optional)</Text>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Add any context..."
+                  placeholderTextColor={colors.textMuted}
+                  value={reason}
+                  onChangeText={setReason}
+                  multiline
+                />
+              </>
+            )}
+
+            <Text style={styles.fieldLabel}>Time completed</Text>
+            <TimeCompletedPicker value={timeCompleted} onChange={setTimeCompleted} />
+
+            <Text style={styles.fieldLabel}>Your initials (signature) *</Text>
+            <TextInput
+              style={styles.initialsInput}
+              value={initials}
+              onChangeText={(t) => setInitials(t.toUpperCase())}
+              maxLength={4}
+              autoCapitalize="characters"
+              placeholder="e.g. SJ"
+              placeholderTextColor={colors.textMuted}
+            />
+
+            {needsWitness && (
+              <>
+                <Text style={styles.fieldLabel}>Witness initials (controlled drug) *</Text>
+                <TextInput
+                  style={styles.initialsInput}
+                  value={witnessInitials}
+                  onChangeText={(t) => setWitnessInitials(t.toUpperCase())}
+                  maxLength={4}
+                  autoCapitalize="characters"
+                  placeholder="e.g. MR"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.saveButton, saving && { opacity: 0.6 }]}
+              onPress={save}
+              disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.saveButtonText}>Save to MAR Chart</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { marginTop: 12, color: '#64748B' },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
-  emptySub: { fontSize: 14, color: '#94A3B8', textAlign: 'center', marginTop: 4 },
+  loadingText: { marginTop: 12, color: colors.textSecondary },
+  pickerWrap: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 32 },
+  pickerHint: { fontSize: 14, color: colors.textSecondary, marginBottom: 12 },
 
-  medCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06,
-    shadowRadius: 6, elevation: 2,
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginTop: 18, marginBottom: 6 },
+  sectionSub: { fontSize: 12, color: colors.textMuted, marginBottom: 10 },
+  emptyCard: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 18,
+    alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.border,
   },
-  medHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  medInfo: { flex: 1 },
-  medName: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
-  medDetail: { fontSize: 13, color: '#64748B', marginTop: 2 },
-  cdBadge: {
-    backgroundColor: '#FEF2F2', borderRadius: 6, paddingHorizontal: 8,
-    paddingVertical: 3, alignSelf: 'flex-start', marginTop: 6,
-  },
-  cdText: { fontSize: 11, color: '#DC2626', fontWeight: '600' },
-  scanButton: {
-    backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 10,
-    paddingVertical: 6, marginLeft: 10,
-  },
-  scanButtonDone: { backgroundColor: '#ECFDF5' },
-  scanButtonText: { fontSize: 12, fontWeight: '600', color: '#4C1D95' },
+  emptyText: { fontSize: 13, color: colors.textMuted, textAlign: 'center' },
 
-  statusRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  statusButton: {
-    flex: 1, borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 8,
-    paddingVertical: 8, alignItems: 'center',
+  tableScroll: {
+    backgroundColor: colors.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: colors.border,
   },
-  statusButtonText: { fontSize: 11, fontWeight: '600', color: '#64748B' },
+  tableRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center' },
+  tableHeader: { backgroundColor: colors.primaryTint, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  tableRowAlt: { backgroundColor: colors.background },
+  th: { fontSize: 11, fontWeight: '700', color: colors.primary, textTransform: 'uppercase' },
+  td: { fontSize: 13, color: colors.textPrimary },
+  tdName: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
+  capitalize: { textTransform: 'capitalize' },
+  cdTag: { fontSize: 10, fontWeight: '700', color: colors.danger, marginTop: 2 },
+  colName: { width: 120, paddingRight: 8 },
+  colPurpose: { width: 170, paddingRight: 8 },
+  colSmall: { width: 92, paddingRight: 8 },
+
+  dueCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05,
+    shadowRadius: 5, elevation: 2,
+  },
+  dueTimeBox: {
+    backgroundColor: colors.primaryTint, borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 8, alignItems: 'center',
+  },
+  dueTime: { fontSize: 15, fontWeight: '700', color: colors.primary },
+  dueMedName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  dueMedDetail: { fontSize: 12, color: colors.textSecondary, marginTop: 2, textTransform: 'capitalize' },
+  recordButton: {
+    backgroundColor: colors.primary, borderRadius: 8,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  recordButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+
+  doneCard: {
+    backgroundColor: colors.surface, borderRadius: 12, padding: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  doneHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  doneMedName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  outcomeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  outcomeBadgeText: { fontSize: 11, fontWeight: '700' },
+  doneMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  doneMeta: { fontSize: 12, color: colors.textSecondary },
+  doneReason: { fontSize: 12, color: colors.textPrimary, marginTop: 8, fontStyle: 'italic' },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 20, paddingBottom: 30, paddingTop: 10, maxHeight: '90%',
+  },
+  modalHandle: {
+    alignSelf: 'center', width: 42, height: 5, borderRadius: 3,
+    backgroundColor: colors.border, marginBottom: 12,
+  },
+  modalTitle: { fontSize: 19, fontWeight: '700', color: colors.textPrimary },
+  modalSub: { fontSize: 13, color: colors.textSecondary, marginTop: 3, marginBottom: 6, textTransform: 'capitalize' },
+
+  fieldLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', marginTop: 16, marginBottom: 8 },
+  outcomeWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  outcomeChip: {
+    borderWidth: 1.5, borderColor: colors.border, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 9, backgroundColor: colors.surface,
+  },
+  outcomeChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
 
   reasonInput: {
-    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
-    borderRadius: 8, padding: 10, fontSize: 13, marginTop: 8, minHeight: 60,
-    textAlignVertical: 'top',
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 10, padding: 12, fontSize: 14, minHeight: 70,
+    textAlignVertical: 'top', color: colors.textPrimary,
   },
-  signButton: {
-    borderWidth: 1.5, borderColor: '#4C1D95', borderRadius: 8, paddingVertical: 10,
-    alignItems: 'center', marginTop: 8, borderStyle: 'dashed',
-  },
-  signButtonDone: { backgroundColor: '#ECFDF5', borderColor: '#059669', borderStyle: 'solid' },
-  signButtonText: { fontSize: 13, color: '#4C1D95', fontWeight: '600' },
 
-  footer: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFFFFF', padding: 16,
-    borderTopWidth: 1, borderTopColor: '#E2E8F0',
+  timePicker: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: colors.background, borderRadius: 12, borderWidth: 1,
+    borderColor: colors.border, paddingVertical: 10,
   },
-  submitButton: {
-    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 15,
-    alignItems: 'center',
+  timeUnit: { alignItems: 'center', gap: 2 },
+  timeDigits: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, minWidth: 44, textAlign: 'center' },
+  timeColon: { fontSize: 28, fontWeight: '700', color: colors.textMuted },
+  nowButton: {
+    marginLeft: 12, backgroundColor: colors.primaryTint, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
-  submitButtonDisabled: { opacity: 0.6 },
-  submitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  nowButtonText: { fontSize: 13, fontWeight: '700', color: colors.primary },
 
-  scanOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scanFrame: {
-    width: 240, height: 160, borderWidth: 2, borderColor: '#FFFFFF',
-    borderRadius: 12, marginBottom: 20,
+  initialsInput: {
+    backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 10, padding: 12, fontSize: 18, fontWeight: '700',
+    letterSpacing: 2, color: colors.textPrimary, width: 120, textAlign: 'center',
   },
-  scanInstructions: { color: '#FFFFFF', fontSize: 14, marginBottom: 20 },
-  cancelScanButton: {
-    backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 24,
-    paddingVertical: 10, borderRadius: 10,
-  },
-  cancelScanText: { color: '#FFFFFF', fontWeight: '600' },
 
-  sigHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+  saveButton: {
+    backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 15,
+    alignItems: 'center', marginTop: 22,
   },
-  sigTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
-  sigClear: { color: '#DC2626', fontWeight: '600' },
-  cancelSigButton: {
-    margin: 16, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10,
-    paddingVertical: 12, alignItems: 'center',
-  },
-  cancelSigText: { color: '#64748B', fontWeight: '600' },
+  saveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  cancelButton: { alignItems: 'center', paddingVertical: 14 },
+  cancelButtonText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
 });

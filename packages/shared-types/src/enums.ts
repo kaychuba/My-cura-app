@@ -43,12 +43,32 @@ export enum ClockEventType {
 }
 
 export enum MARStatus {
+  /** Admin has scheduled this dose; awaiting the carer's outcome. */
+  SCHEDULED = 'scheduled',
   GIVEN = 'given',
+  PARENT_ADMINISTERED = 'parent_administered',
   REFUSED = 'refused',
+  NOT_ADMINISTERED = 'not_administered',
+  OTHER = 'other',
   NOT_AVAILABLE = 'not_available',
   SELF_ADMINISTERED = 'self_administered',
   ADMINISTERED_BY_GP = 'administered_by_gp',
   WASTE = 'waste',
+}
+
+export enum MedicationFormulation {
+  TABLET = 'tablet',
+  CAPSULE = 'capsule',
+  LIQUID = 'liquid',
+  POWDER = 'powder',
+  SUPPOSITORY = 'suppository',
+  CREAM = 'cream',
+  OINTMENT = 'ointment',
+  PATCH = 'patch',
+  INHALER = 'inhaler',
+  DROPS = 'drops',
+  INJECTION = 'injection',
+  SPRAY = 'spray',
 }
 
 export enum LeaveType {

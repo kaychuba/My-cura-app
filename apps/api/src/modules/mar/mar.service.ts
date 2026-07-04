@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, IsNull } from 'typeorm';
 import { MedicationEntity } from './entities/medication.entity';
 import { MARRecordEntity } from './entities/mar-record.entity';
-import { MARStatus, MedicationRoute } from '@my-cura/shared-types';
+import { MARStatus, MedicationFormulation, MedicationRoute } from '@my-cura/shared-types';
 import { encrypt, decrypt } from '@my-cura/shared-utils';
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
 const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
@@ -14,7 +14,10 @@ export interface CreateMedicationDto {
   serviceUserId: string;
   name: string;
   genericName?: string;
+  purpose?: string;
   dosage: string;
+  quantity?: string;
+  formulation?: MedicationFormulation;
   frequency: string;
   timesOfDay?: string[];
   route: MedicationRoute;
@@ -42,6 +45,36 @@ export interface RecordMARDto {
   witnessSvg?: string;
   barcodeVerified?: boolean;
   notes?: string;
+}
+
+export interface ScheduleDoseDto {
+  medicationId: string;
+  serviceUserId: string;
+  /** One or more exact date-times the admin wants the dose given. */
+  scheduledAt: string | string[];
+}
+
+/** Outcomes a carer may record against an admin-scheduled dose. */
+const CARER_OUTCOMES: readonly MARStatus[] = [
+  MARStatus.GIVEN,
+  MARStatus.PARENT_ADMINISTERED,
+  MARStatus.REFUSED,
+  MARStatus.NOT_ADMINISTERED,
+  MARStatus.OTHER,
+];
+
+export interface AdministerDoseDto {
+  status: MARStatus;
+  /** The carer's "time completed" selection. */
+  timeCompleted: string;
+  /** Carer initials, entered as their signature. */
+  initials: string;
+  /** Required when status is OTHER; optional context otherwise. */
+  reason?: string;
+  notes?: string;
+  witnessId?: string;
+  witnessInitials?: string;
+  signatureSvg?: string;
 }
 
 export interface MARChartQuery {
@@ -98,6 +131,96 @@ export class MARService {
     const med = await this.getMedication(tenantId, id);
     med.status = 'discontinued';
     await this.medicationRepo.save(med);
+  }
+
+  /** Admin schedules dose(s): exact date & time the medication must be given. */
+  async scheduleDoses(tenantId: string, dto: ScheduleDoseDto): Promise<MARRecordEntity[]> {
+    const med = await this.getMedication(tenantId, dto.medicationId);
+    if (med.status !== 'active') {
+      throw new BadRequestException('Cannot schedule a discontinued medication');
+    }
+    if (med.serviceUserId !== dto.serviceUserId) {
+      throw new BadRequestException('Medication does not belong to this service user');
+    }
+
+    const times = (Array.isArray(dto.scheduledAt) ? dto.scheduledAt : [dto.scheduledAt])
+      .map((t) => new Date(t));
+    if (times.some((t) => isNaN(t.getTime()))) {
+      throw new BadRequestException('Invalid scheduledAt date');
+    }
+
+    const created: MARRecordEntity[] = [];
+    for (const scheduledAt of times) {
+      const duplicate = await this.marRepo.findOne({
+        where: { tenantId, medicationId: dto.medicationId, scheduledAt },
+      });
+      if (duplicate) continue;
+
+      created.push(
+        await this.marRepo.save(
+          this.marRepo.create({
+            tenantId,
+            medicationId: dto.medicationId,
+            serviceUserId: dto.serviceUserId,
+            scheduledAt,
+            status: MARStatus.SCHEDULED,
+          }),
+        ),
+      );
+    }
+    return created;
+  }
+
+  /**
+   * Carer records the outcome of an admin-scheduled dose. Only records the
+   * admin created (status = SCHEDULED) can be completed — this is what makes
+   * the options appear in the carer portal only when a dose is due.
+   */
+  async administerScheduled(
+    tenantId: string,
+    careWorkerId: string,
+    recordId: string,
+    dto: AdministerDoseDto,
+  ): Promise<MARRecordEntity> {
+    const record = await this.marRepo.findOne({ where: { id: recordId, tenantId } });
+    if (!record) throw new NotFoundException('Scheduled dose not found');
+    if (record.status !== MARStatus.SCHEDULED) {
+      throw new BadRequestException('This dose has already been recorded');
+    }
+    if (!CARER_OUTCOMES.includes(dto.status)) {
+      throw new BadRequestException(
+        'Status must be one of: given, parent_administered, refused, not_administered, other',
+      );
+    }
+    if (!dto.initials?.trim()) {
+      throw new BadRequestException('Your initials are required as a signature');
+    }
+    if (dto.status === MARStatus.OTHER && !dto.reason?.trim()) {
+      throw new BadRequestException('Please state the reason when selecting Other');
+    }
+    const timeCompleted = new Date(dto.timeCompleted);
+    if (isNaN(timeCompleted.getTime())) {
+      throw new BadRequestException('Invalid time completed');
+    }
+
+    const med = await this.getMedication(tenantId, record.medicationId);
+    if (med.isControlled && dto.status === MARStatus.GIVEN && !dto.witnessId && !dto.witnessInitials?.trim()) {
+      throw new BadRequestException('Controlled drug administration requires a witness');
+    }
+
+    record.careWorkerId = careWorkerId;
+    record.status = dto.status;
+    record.administeredAt = timeCompleted;
+    record.recordedAt = new Date();
+    record.initials = dto.initials.trim().toUpperCase();
+    record.reasonNotGiven = dto.reason;
+    record.notes = dto.notes;
+    record.witnessId = dto.witnessId;
+    record.witnessInitials = dto.witnessInitials?.trim().toUpperCase();
+    if (dto.signatureSvg) {
+      record.signatureSvgEnc = encrypt(dto.signatureSvg, process.env['ENCRYPTION_KEY'] ?? '');
+    }
+    return this.marRepo.save(record);
   }
 
   async recordMAR(tenantId: string, careWorkerId: string, dto: RecordMARDto): Promise<MARRecordEntity> {
@@ -165,7 +288,7 @@ export class MARService {
   async getDailyMAR(tenantId: string, serviceUserId: string, date: string): Promise<{
     medications: MedicationEntity[];
     records: MARRecordEntity[];
-    summary: { total: number; given: number; missed: number; refused: number; complianceRate: number };
+    summary: { total: number; given: number; missed: number; refused: number; pending: number; complianceRate: number };
   }> {
     const day = new Date(date);
     const medications = await this.listMedications(tenantId, serviceUserId);
@@ -178,10 +301,17 @@ export class MARService {
       order: { scheduledAt: 'ASC' },
     });
 
-    const given = records.filter((r) => r.status === MARStatus.GIVEN || r.status === MARStatus.SELF_ADMINISTERED).length;
-    const missed = records.filter((r) => r.status === MARStatus.NOT_AVAILABLE).length;
+    const ADMINISTERED = [
+      MARStatus.GIVEN, MARStatus.SELF_ADMINISTERED,
+      MARStatus.PARENT_ADMINISTERED, MARStatus.ADMINISTERED_BY_GP,
+    ];
+    const given = records.filter((r) => ADMINISTERED.includes(r.status)).length;
+    const missed = records.filter((r) =>
+      r.status === MARStatus.NOT_AVAILABLE || r.status === MARStatus.NOT_ADMINISTERED,
+    ).length;
     const refused = records.filter((r) => r.status === MARStatus.REFUSED).length;
-    const total = records.length;
+    const pending = records.filter((r) => r.status === MARStatus.SCHEDULED).length;
+    const total = records.length - pending;
 
     return {
       medications,
@@ -191,6 +321,7 @@ export class MARService {
         given,
         missed,
         refused,
+        pending,
         complianceRate: total > 0 ? Math.round((given / total) * 100) : 100,
       },
     };
