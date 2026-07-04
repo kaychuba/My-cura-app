@@ -47,7 +47,7 @@ export default function PolicyDetailScreen() {
   if (!policy) {
     return (
       <View style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator color="#1E3A5F" />
+        <ActivityIndicator color="#4C1D95" />
       </View>
     );
   }
@@ -71,7 +71,7 @@ export default function PolicyDetailScreen() {
           onPress={() => Linking.openURL(policy.externalUrl!)}
           activeOpacity={0.8}
         >
-          <Feather name="external-link" size={18} color="#1E3A5F" />
+          <Feather name="external-link" size={18} color="#4C1D95" />
           <Text style={styles.linkButtonText}>Open Policy Document</Text>
         </TouchableOpacity>
       )}
@@ -119,10 +119,10 @@ const styles = StyleSheet.create({
 
   linkButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#EFF6FF', borderRadius: 12, paddingVertical: 14, marginTop: 16,
-    borderWidth: 1.5, borderColor: '#1E3A5F',
+    backgroundColor: '#F5F3FF', borderRadius: 12, paddingVertical: 14, marginTop: 16,
+    borderWidth: 1.5, borderColor: '#4C1D95',
   },
-  linkButtonText: { fontSize: 14, fontWeight: '600', color: '#1E3A5F' },
+  linkButtonText: { fontSize: 14, fontWeight: '600', color: '#4C1D95' },
 
   ackButton: {
     backgroundColor: '#14B8A6', borderRadius: 12, paddingVertical: 16,

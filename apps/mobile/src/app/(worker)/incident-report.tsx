@@ -153,10 +153,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   infoBanner: {
-    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: '#BFDBFE',
+    backgroundColor: '#F5F3FF', borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#DDD6FE',
   },
-  infoBannerText: { fontSize: 13, color: '#1E3A5F', lineHeight: 19 },
+  infoBannerText: { fontSize: 13, color: '#4C1D95', lineHeight: 19 },
 
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 16 },
 
@@ -165,10 +165,10 @@ const styles = StyleSheet.create({
     width: '31%', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0',
     borderRadius: 10, paddingVertical: 12, paddingHorizontal: 4, alignItems: 'center',
   },
-  typeChipSelected: { borderColor: '#1E3A5F', backgroundColor: '#EFF6FF' },
+  typeChipSelected: { borderColor: '#4C1D95', backgroundColor: '#F5F3FF' },
   typeIcon: { fontSize: 20, marginBottom: 4 },
   typeLabel: { fontSize: 11, color: '#64748B', fontWeight: '500', textAlign: 'center' },
-  typeLabelSelected: { color: '#1E3A5F', fontWeight: '600' },
+  typeLabelSelected: { color: '#4C1D95', fontWeight: '600' },
 
   severityRow: { flexDirection: 'row', gap: 8 },
   severityButton: {
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
 
   submitButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 16,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginTop: 24,
   },
   submitButtonDisabled: { opacity: 0.6 },

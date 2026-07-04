@@ -67,7 +67,7 @@ export function ServiceUserPicker({ value, onChange, label = 'Service User *' }:
               autoCorrect={false}
             />
             {options === null ? (
-              <ActivityIndicator color="#1E3A5F" style={{ marginTop: 32 }} />
+              <ActivityIndicator color="#4C1D95" style={{ marginTop: 32 }} />
             ) : (
               <FlatList
                 data={filtered}
@@ -125,10 +125,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
   optionAvatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF',
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#F5F3FF',
     alignItems: 'center', justifyContent: 'center',
   },
-  optionAvatarText: { fontSize: 13, fontWeight: '700', color: '#1E3A5F' },
+  optionAvatarText: { fontSize: 13, fontWeight: '700', color: '#4C1D95' },
   optionName: { flex: 1, fontSize: 15, color: '#0F172A' },
   empty: { textAlign: 'center', color: '#94A3B8', marginTop: 32, fontSize: 14 },
 });

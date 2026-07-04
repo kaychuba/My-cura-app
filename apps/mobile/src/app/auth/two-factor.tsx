@@ -73,7 +73,7 @@ export default function TwoFactorScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, backgroundColor: '#1E3A5F',
+    flex: 1, backgroundColor: '#4C1D95',
     justifyContent: 'center', padding: 24,
   },
   card: {
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     marginTop: 20, alignSelf: 'stretch',
   },
   button: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 15,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 15,
     alignItems: 'center', marginTop: 16, alignSelf: 'stretch',
   },
   buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },

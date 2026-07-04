@@ -161,9 +161,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0',
     borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14,
   },
-  categoryChipSelected: { borderColor: '#1E3A5F', backgroundColor: '#EFF6FF' },
+  categoryChipSelected: { borderColor: '#4C1D95', backgroundColor: '#F5F3FF' },
   categoryText: { fontSize: 13, color: '#64748B', fontWeight: '500' },
-  categoryTextSelected: { color: '#1E3A5F', fontWeight: '600' },
+  categoryTextSelected: { color: '#4C1D95', fontWeight: '600' },
 
   textarea: {
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
 
   submitButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 16,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginTop: 24,
   },
   submitButtonDisabled: { opacity: 0.6 },

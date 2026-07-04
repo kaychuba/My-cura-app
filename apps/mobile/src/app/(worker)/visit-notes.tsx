@@ -108,11 +108,11 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0',
     borderRadius: 10, padding: 10, alignItems: 'center',
   },
-  moodButtonSelected: { borderColor: '#1E3A5F', backgroundColor: '#EFF6FF' },
+  moodButtonSelected: { borderColor: '#4C1D95', backgroundColor: '#F5F3FF' },
   moodEmoji: { fontSize: 22 },
   moodLabel: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 8 },
   submitButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 16,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginTop: 24,
   },
   submitButtonDisabled: { opacity: 0.6 },

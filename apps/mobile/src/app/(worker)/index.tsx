@@ -58,7 +58,7 @@ export default function WorkerDashboard() {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A5F" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4C1D95" />}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   header: {
-    backgroundColor: '#1E3A5F', paddingHorizontal: 20, paddingTop: 20,
+    backgroundColor: '#4C1D95', paddingHorizontal: 20, paddingTop: 20,
     paddingBottom: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
   greeting: { fontSize: 14, color: 'rgba(255,255,255,0.7)' },
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
   },
-  statValue: { fontSize: 18, fontWeight: '700', color: '#1E3A5F' },
+  statValue: { fontSize: 18, fontWeight: '700', color: '#4C1D95' },
   statLabel: { fontSize: 11, color: '#64748B', marginTop: 2, textAlign: 'center' },
 
   section: { paddingHorizontal: 16, paddingTop: 24 },
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   shiftServiceUser: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
   shiftStatusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
   shiftStatusText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
-  shiftTime: { fontSize: 13, color: '#1E3A5F', fontWeight: '500', marginBottom: 2 },
+  shiftTime: { fontSize: 13, color: '#4C1D95', fontWeight: '500', marginBottom: 2 },
   shiftAddress: { fontSize: 12, color: '#64748B' },
 
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

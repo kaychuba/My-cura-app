@@ -47,7 +47,7 @@ export default function PoliciesScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1E3A5F" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4C1D95" />}
     >
       <View style={styles.infoBanner}>
         <Text style={styles.infoBannerText}>
@@ -58,7 +58,7 @@ export default function PoliciesScreen() {
       </View>
 
       {policies === null ? (
-        <ActivityIndicator color="#1E3A5F" style={{ marginTop: 48 }} />
+        <ActivityIndicator color="#4C1D95" style={{ marginTop: 48 }} />
       ) : policies.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyIcon}>📖</Text>
@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   infoBanner: {
-    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: '#BFDBFE', marginBottom: 16,
+    backgroundColor: '#F5F3FF', borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#DDD6FE', marginBottom: 16,
   },
-  infoBannerText: { fontSize: 13, color: '#1E3A5F', lineHeight: 19 },
+  infoBannerText: { fontSize: 13, color: '#4C1D95', lineHeight: 19 },
 
   emptyCard: {
     backgroundColor: '#FFFFFF', borderRadius: 12, padding: 32,

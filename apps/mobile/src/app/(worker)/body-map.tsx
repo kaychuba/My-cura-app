@@ -273,10 +273,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   infoBanner: {
-    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: '#BFDBFE',
+    backgroundColor: '#F5F3FF', borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: '#DDD6FE',
   },
-  infoBannerText: { fontSize: 13, color: '#1E3A5F', lineHeight: 19 },
+  infoBannerText: { fontSize: 13, color: '#4C1D95', lineHeight: 19 },
 
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 16 },
 
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   viewToggleButton: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
   viewToggleButtonActive: { backgroundColor: '#FFFFFF' },
   viewToggleText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  viewToggleTextActive: { color: '#1E3A5F' },
+  viewToggleTextActive: { color: '#4C1D95' },
 
   outlineCard: {
     backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginTop: 12,
@@ -304,12 +304,12 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3, shadowRadius: 2, elevation: 3,
   },
-  markerPending: { backgroundColor: '#1E3A5F' },
+  markerPending: { backgroundColor: '#4C1D95' },
   markerNumber: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
 
   pendingPanel: {
     backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginTop: 12,
-    borderWidth: 1.5, borderColor: '#1E3A5F',
+    borderWidth: 1.5, borderColor: '#4C1D95',
   },
   pendingTitle: { fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: 10 },
   typeWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
   addButton: {
     flex: 2, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
-    backgroundColor: '#1E3A5F',
+    backgroundColor: '#4C1D95',
   },
   addText: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
 
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
 
   submitButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 16,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 16,
     alignItems: 'center', marginTop: 24,
   },
   submitButtonDisabled: { opacity: 0.6 },

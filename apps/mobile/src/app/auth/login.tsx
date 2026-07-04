@@ -136,7 +136,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E3A5F' },
+  container: { flex: 1, backgroundColor: '#4C1D95' },
   content: { flex: 1, justifyContent: 'center', padding: 24 },
   logoContainer: { alignItems: 'center', marginBottom: 40 },
   logoIcon: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   },
   eyeIcon: { fontSize: 16 },
   loginButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 15,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 15,
     alignItems: 'center', marginTop: 24,
   },
   loginButtonDisabled: { opacity: 0.6 },
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingVertical: 14, marginTop: 12,
     borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12,
   },
-  biometricText: { color: '#1E3A5F', fontSize: 14, fontWeight: '500' },
+  biometricText: { color: '#4C1D95', fontSize: 14, fontWeight: '500' },
   forgotLink: { alignItems: 'center', paddingTop: 16 },
   forgotText: { color: '#0D9488', fontSize: 13, fontWeight: '500' },
 });

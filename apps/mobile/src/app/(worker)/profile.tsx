@@ -28,7 +28,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', padding: 24 },
   avatar: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: '#1E3A5F',
+    width: 80, height: 80, borderRadius: 40, backgroundColor: '#4C1D95',
     alignItems: 'center', justifyContent: 'center', marginBottom: 16,
   },
   avatarText: { color: '#FFFFFF', fontSize: 28, fontWeight: '700' },

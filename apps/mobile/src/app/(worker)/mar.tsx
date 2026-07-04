@@ -146,7 +146,7 @@ export default function MARScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1E3A5F" />
+        <ActivityIndicator size="large" color="#4C1D95" />
         <Text style={styles.loadingText}>Loading medications...</Text>
       </View>
     );
@@ -308,7 +308,7 @@ export default function MARScreen() {
             clearText="Clear"
             confirmText="Confirm"
             style={{ flex: 1 }}
-            webStyle=".m-signature-pad { box-shadow: none; border: none; } .m-signature-pad--footer { background-color: #1E3A5F; }"
+            webStyle=".m-signature-pad { box-shadow: none; border: none; } .m-signature-pad--footer { background-color: #4C1D95; }"
           />
           <TouchableOpacity style={styles.cancelSigButton} onPress={() => setSigningFor(null)}>
             <Text style={styles.cancelSigText}>Cancel</Text>
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6, marginLeft: 10,
   },
   scanButtonDone: { backgroundColor: '#ECFDF5' },
-  scanButtonText: { fontSize: 12, fontWeight: '600', color: '#1E3A5F' },
+  scanButtonText: { fontSize: 12, fontWeight: '600', color: '#4C1D95' },
 
   statusRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
   statusButton: {
@@ -362,11 +362,11 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   signButton: {
-    borderWidth: 1.5, borderColor: '#1E3A5F', borderRadius: 8, paddingVertical: 10,
+    borderWidth: 1.5, borderColor: '#4C1D95', borderRadius: 8, paddingVertical: 10,
     alignItems: 'center', marginTop: 8, borderStyle: 'dashed',
   },
   signButtonDone: { backgroundColor: '#ECFDF5', borderColor: '#059669', borderStyle: 'solid' },
-  signButtonText: { fontSize: 13, color: '#1E3A5F', fontWeight: '600' },
+  signButtonText: { fontSize: 13, color: '#4C1D95', fontWeight: '600' },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#E2E8F0',
   },
   submitButton: {
-    backgroundColor: '#1E3A5F', borderRadius: 12, paddingVertical: 15,
+    backgroundColor: '#4C1D95', borderRadius: 12, paddingVertical: 15,
     alignItems: 'center',
   },
   submitButtonDisabled: { opacity: 0.6 },

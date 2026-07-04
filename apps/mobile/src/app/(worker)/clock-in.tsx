@@ -137,7 +137,7 @@ export default function ClockInScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#1E3A5F" />
+        <ActivityIndicator size="large" color="#4C1D95" />
         <Text style={styles.loadingText}>Loading shift...</Text>
       </View>
     );
@@ -265,7 +265,7 @@ export default function ClockInScreen() {
 
         {phase === 'submitting' && (
           <View style={styles.submittingContainer}>
-            <ActivityIndicator size="large" color="#1E3A5F" />
+            <ActivityIndicator size="large" color="#4C1D95" />
             <Text style={styles.submittingText}>Recording visit...</Text>
           </View>
         )}
@@ -293,13 +293,13 @@ const styles = StyleSheet.create({
   noShiftTitle: { fontSize: 18, fontWeight: '600', color: '#1E293B', marginBottom: 8 },
   noShiftSub: { fontSize: 14, color: '#64748B', textAlign: 'center' },
   backButton: {
-    marginTop: 20, backgroundColor: '#1E3A5F', paddingHorizontal: 24,
+    marginTop: 20, backgroundColor: '#4C1D95', paddingHorizontal: 24,
     paddingVertical: 12, borderRadius: 10,
   },
   backButtonText: { color: '#FFFFFF', fontWeight: '600' },
 
   shiftCard: {
-    backgroundColor: '#1E3A5F', borderRadius: 16, padding: 20, marginBottom: 16,
+    backgroundColor: '#4C1D95', borderRadius: 16, padding: 20, marginBottom: 16,
   },
   shiftLabel: { fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
   serviceUserName: { fontSize: 22, fontWeight: '700', color: '#FFFFFF', marginTop: 4 },
@@ -354,8 +354,8 @@ const styles = StyleSheet.create({
   submittingText: { color: '#64748B', fontSize: 14 },
 
   notesButton: {
-    borderWidth: 1.5, borderColor: '#1E3A5F', borderRadius: 12,
+    borderWidth: 1.5, borderColor: '#4C1D95', borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
   },
-  notesButtonText: { color: '#1E3A5F', fontSize: 14, fontWeight: '600' },
+  notesButtonText: { color: '#4C1D95', fontSize: 14, fontWeight: '600' },
 });
