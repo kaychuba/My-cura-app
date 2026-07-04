@@ -73,7 +73,8 @@
         {
           "faceIDPermission": "Allow My-Cura to use Face ID for authentication."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "scheme": "mycura",
     "experiments": {
