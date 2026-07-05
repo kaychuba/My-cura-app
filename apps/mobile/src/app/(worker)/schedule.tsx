@@ -4,6 +4,7 @@ import {
   Modal, Linking, Platform, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import {
   addDays, addMonths, endOfMonth, format, isSameDay, isSameMonth,
   parseISO, startOfMonth, startOfWeek,
@@ -268,6 +269,23 @@ function ShiftDetailModal({ shift, onClose }: { shift: CalendarShift | null; onC
             {addr ? `${addr.lat.toFixed(5)}, ${addr.lon.toFixed(5)}` : 'Not available'}
           </DetailRow>
 
+          {!!su && (
+            <TouchableOpacity
+              style={styles.carePlanButton}
+              activeOpacity={0.85}
+              onPress={() => {
+                onClose();
+                router.push({
+                  pathname: '/(worker)/care-plan',
+                  params: { serviceUserId: su.id, suName: `${su.firstName} ${su.lastName}` },
+                });
+              }}
+            >
+              <Feather name="clipboard" size={16} color={colors.primary} />
+              <Text style={styles.carePlanButtonText}>View Care Plan</Text>
+            </TouchableOpacity>
+          )}
+
           {!!addr && (
             <TouchableOpacity style={styles.mapsButton} onPress={openMaps} activeOpacity={0.85}>
               <Feather name="navigation" size={16} color="#FFFFFF" />
@@ -387,6 +405,12 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
   detailValue: { fontSize: 14, color: colors.textPrimary, marginTop: 2, lineHeight: 20 },
 
+  carePlanButton: {
+    flexDirection: 'row', gap: 8, backgroundColor: colors.primaryTint,
+    borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
+    marginTop: 4, marginBottom: 8,
+  },
+  carePlanButtonText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   mapsButton: {
     flexDirection: 'row', gap: 8, backgroundColor: colors.primary,
     borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center',

@@ -6,6 +6,7 @@ import {
 import { router } from 'expo-router';
 import { useAuthStore } from '../../stores/auth.store';
 import { apiClient } from '../../services/api.client';
+import { useMedicationReminders } from '../../hooks/useMedicationReminders';
 import { ShiftStatus } from '@my-cura/shared-types';
 import { formatDisplayTime, formatDisplayDate } from '@my-cura/shared-utils';
 
@@ -28,6 +29,7 @@ interface DashboardData {
 
 export default function WorkerDashboard() {
   const { user } = useAuthStore();
+  useMedicationReminders(); // vibration-only reminders for today's scheduled doses
   const [data, setData] = useState<DashboardData | null>(null);
   const [policiesToRead, setPoliciesToRead] = useState(0);
   const [refreshing, setRefreshing] = useState(false);

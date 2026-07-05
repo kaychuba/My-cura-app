@@ -14,6 +14,7 @@ import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { SchedulingPage } from './pages/scheduling/SchedulingPage';
 import { WorkersPage } from './pages/workers/WorkersPage';
 import { ServiceUsersPage } from './pages/service-users/ServiceUsersPage';
+import { ServiceUserProfilePage } from './pages/service-users/ServiceUserProfilePage';
 import { PayrollPage } from './pages/payroll/PayrollPage';
 import { MARPage } from './pages/mar/MARPage';
 import { ReportsPage } from './pages/reports/ReportsPage';
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="/scheduling" element={<SchedulingPage />} />
           <Route path="/workers" element={<WorkersPage />} />
           <Route path="/service-users" element={<ServiceUsersPage />} />
+          <Route path="/service-users/:id" element={<ServiceUserProfilePage />} />
           <Route path="/payroll" element={<PayrollPage />} />
           <Route path="/mar" element={<MARPage />} />
           <Route path="/reports" element={<ReportsPage />} />

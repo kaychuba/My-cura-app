@@ -89,6 +89,8 @@ export default function WorkerLayout() {
         <Tabs.Screen name="body-map" options={{ href: null, headerTitle: 'Body Map' }} />
         <Tabs.Screen name="policies" options={{ href: null, headerTitle: 'Company Policies' }} />
         <Tabs.Screen name="policy-detail" options={{ href: null, headerTitle: 'Policy' }} />
+        <Tabs.Screen name="notifications" options={{ href: null, headerTitle: 'Notifications' }} />
+        <Tabs.Screen name="care-plan" options={{ href: null, headerTitle: 'Care Plan' }} />
       </Tabs>
 
       <QuickMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />

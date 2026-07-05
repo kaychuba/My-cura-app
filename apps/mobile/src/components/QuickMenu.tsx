@@ -22,6 +22,7 @@ const OPTIONS: MenuOption[] = [
   { icon: 'shield', label: 'Speak Up', description: 'Confidential concerns', route: '/(worker)/whistleblowing' },
   { icon: 'book-open', label: 'Policies', description: 'Read & acknowledge', route: '/(worker)/policies' },
   { icon: 'message-square', label: 'Messages', description: 'Team conversations', route: '/(worker)/messages' },
+  { icon: 'bell', label: 'Notifications', description: 'Alerts & reminders', route: '/(worker)/notifications' },
   { icon: 'user-check', label: 'My Profile', description: 'Details & settings', route: '/(worker)/profile' },
 ];
 
