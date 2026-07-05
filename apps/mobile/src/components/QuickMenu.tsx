@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { SwipeableSheet } from './SwipeableSheet';
 import { colors } from '../theme';
 
 interface MenuOption {
@@ -33,14 +34,12 @@ export function QuickMenu({ visible, onClose }: { visible: boolean; onClose: () 
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.sheet} edges={['top', 'bottom']}>
-        <View style={styles.handle} />
-
+    <SwipeableSheet visible={visible} onClose={onClose} fullScreen>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Menu</Text>
-            <Text style={styles.subtitle}>Everything in one place</Text>
+            <Text style={styles.subtitle}>Everything in one place — swipe down to close</Text>
           </View>
           <TouchableOpacity style={styles.collapseButton} onPress={onClose} activeOpacity={0.7}>
             <Feather name="chevron-down" size={22} color={colors.primary} />
@@ -64,19 +63,14 @@ export function QuickMenu({ visible, onClose }: { visible: boolean; onClose: () 
           ))}
         </ScrollView>
       </SafeAreaView>
-    </Modal>
+    </SwipeableSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: { flex: 1, backgroundColor: colors.background },
-  handle: {
-    alignSelf: 'center', width: 42, height: 5, borderRadius: 3,
-    backgroundColor: colors.border, marginTop: 10,
-  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16,
+    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 16,
   },
   title: { fontSize: 24, fontWeight: '700', color: colors.textPrimary },
   subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },

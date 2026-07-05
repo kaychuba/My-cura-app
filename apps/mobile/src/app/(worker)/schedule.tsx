@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Modal, Linking, Platform, ActivityIndicator, RefreshControl,
+  Linking, Platform, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { SwipeableSheet } from '../../components/SwipeableSheet';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import {
@@ -233,11 +234,8 @@ function ShiftDetailModal({ shift, onClose }: { shift: CalendarShift | null; onC
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalSheet}>
-          <View style={styles.modalHandle} />
-
+    <SwipeableSheet visible onClose={onClose}>
+        <View style={styles.modalBody}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Visit details</Text>
             <View style={[styles.statusBadge, { backgroundColor: statusColor + '22' }]}>
@@ -297,8 +295,7 @@ function ShiftDetailModal({ shift, onClose }: { shift: CalendarShift | null; onC
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+    </SwipeableSheet>
   );
 }
 
@@ -380,15 +377,7 @@ const styles = StyleSheet.create({
   shiftName: { fontSize: 15, fontWeight: '600', color: colors.textPrimary, marginTop: 2 },
   shiftAddr: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22,
-    paddingHorizontal: 20, paddingBottom: 34, paddingTop: 10,
-  },
-  modalHandle: {
-    alignSelf: 'center', width: 42, height: 5, borderRadius: 3,
-    backgroundColor: colors.border, marginBottom: 12,
-  },
+  modalBody: { paddingHorizontal: 20, paddingBottom: 34 },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: 14,

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Modal, FlatList, ActivityIndicator,
+  FlatList, ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { apiClient } from '../services/api.client';
+import { SwipeableSheet } from './SwipeableSheet';
 
 export interface ServiceUserOption {
   id: string;
@@ -50,9 +51,8 @@ export function ServiceUserPicker({ value, onChange, label = 'Service User *' }:
         <Feather name="chevron-down" size={18} color="#64748B" />
       </TouchableOpacity>
 
-      <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
+      <SwipeableSheet visible={open} onClose={() => setOpen(false)}>
+        <View style={styles.modalSheet}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Service User</Text>
               <TouchableOpacity onPress={() => setOpen(false)} hitSlop={12}>
@@ -92,9 +92,8 @@ export function ServiceUserPicker({ value, onChange, label = 'Service User *' }:
                 )}
               />
             )}
-          </View>
         </View>
-      </Modal>
+      </SwipeableSheet>
     </View>
   );
 }
@@ -109,11 +108,7 @@ const styles = StyleSheet.create({
   fieldValue: { fontSize: 14, color: '#0F172A' },
   fieldPlaceholder: { fontSize: 14, color: '#94A3B8' },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    maxHeight: '75%', minHeight: '50%', padding: 20,
-  },
+  modalSheet: { minHeight: 380, padding: 20, paddingTop: 4 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   modalTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
   search: {

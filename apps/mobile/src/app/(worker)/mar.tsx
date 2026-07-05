@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, TextInput, Modal, KeyboardAvoidingView, Platform,
+  Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -10,7 +10,16 @@ import { apiClient } from '../../services/api.client';
 import { useAuthStore } from '../../stores/auth.store';
 import { MARStatus } from '@my-cura/shared-types';
 import { ServiceUserPicker, ServiceUserOption } from '../../components/ServiceUserPicker';
+import { SwipeableSheet } from '../../components/SwipeableSheet';
 import { colors } from '../../theme';
+
+/** Care times are recorded on clean 5-minute marks (20:30, 20:35, 20:40…). */
+function roundTo5(d: Date): Date {
+  const x = new Date(d);
+  x.setSeconds(0, 0);
+  x.setMinutes(Math.round(x.getMinutes() / 5) * 5);
+  return x;
+}
 
 interface Medication {
   id: string;
@@ -53,7 +62,19 @@ export default function MARScreen() {
   const params = useLocalSearchParams<{ serviceUserId?: string }>();
   const { user } = useAuthStore();
   const [pickedSU, setPickedSU] = useState<ServiceUserOption | null>(null);
-  const serviceUserId = params.serviceUserId ?? pickedSU?.id;
+  const serviceUserId = pickedSU?.id;
+
+  // Arriving from a shift pre-selects that person, but the picker stays
+  // available — carers attending several clients can switch at any time.
+  useEffect(() => {
+    if (params.serviceUserId && !pickedSU) {
+      apiClient
+        .get<ServiceUserOption>(`/service-users/${params.serviceUserId}`)
+        .then(({ data }) => setPickedSU({ id: data.id, firstName: data.firstName, lastName: data.lastName }))
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.serviceUserId]);
 
   const [medications, setMedications] = useState<Medication[]>([]);
   const [records, setRecords] = useState<MARRecord[]>([]);
@@ -112,6 +133,9 @@ export default function MARScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {/* Always available — carers looking after several clients switch here */}
+      <ServiceUserPicker value={pickedSU} onChange={setPickedSU} label="Service User" />
+
       {/* ── Medication table (all values set by the admin) ── */}
       <Text style={styles.sectionTitle}>Medication Chart</Text>
       {medications.length === 0 ? (
@@ -308,7 +332,7 @@ function TimeCompletedPicker({ value, onChange }: { value: Date; onChange: (d: D
           <Feather name="chevron-down" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.nowButton} onPress={() => onChange(new Date())}>
+      <TouchableOpacity style={styles.nowButton} onPress={() => onChange(roundTo5(new Date()))}>
         <Text style={styles.nowButtonText}>Now</Text>
       </TouchableOpacity>
     </View>
@@ -324,7 +348,7 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
   onSaved: () => void;
 }) {
   const [outcome, setOutcome] = useState<MARStatus | null>(null);
-  const [timeCompleted, setTimeCompleted] = useState(new Date());
+  const [timeCompleted, setTimeCompleted] = useState(() => roundTo5(new Date()));
   const [initials, setInitials] = useState(defaultInitials);
   const [witnessInitials, setWitnessInitials] = useState('');
   const [reason, setReason] = useState('');
@@ -335,7 +359,7 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
   useEffect(() => {
     if (open) {
       setOutcome(null);
-      setTimeCompleted(new Date());
+      setTimeCompleted(roundTo5(new Date()));
       setInitials(defaultInitials);
       setWitnessInitials('');
       setReason('');
@@ -422,14 +446,10 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
   };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalBackdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.modalSheet}>
+    <SwipeableSheet visible onClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.modalBody}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{medication?.name ?? 'Record dose'}</Text>
             <Text style={styles.modalSub}>
               {prn
@@ -531,7 +551,7 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
-    </Modal>
+    </SwipeableSheet>
   );
 }
 
@@ -608,15 +628,7 @@ const styles = StyleSheet.create({
   doneMeta: { fontSize: 12, color: colors.textSecondary },
   doneReason: { fontSize: 12, color: colors.textPrimary, marginTop: 8, fontStyle: 'italic' },
 
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22,
-    paddingHorizontal: 20, paddingBottom: 30, paddingTop: 10, maxHeight: '90%',
-  },
-  modalHandle: {
-    alignSelf: 'center', width: 42, height: 5, borderRadius: 3,
-    backgroundColor: colors.border, marginBottom: 12,
-  },
+  modalBody: { paddingHorizontal: 20, paddingBottom: 30 },
   modalTitle: { fontSize: 19, fontWeight: '700', color: colors.textPrimary },
   modalSub: { fontSize: 13, color: colors.textSecondary, marginTop: 3, marginBottom: 6, textTransform: 'capitalize' },
 
