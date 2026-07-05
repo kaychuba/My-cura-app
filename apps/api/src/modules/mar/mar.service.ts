@@ -19,6 +19,8 @@ export interface CreateMedicationDto {
   dosage: string;
   quantity?: string;
   formulation?: MedicationFormulation;
+  isPrn?: boolean;
+  prnInstructions?: string;
   frequency: string;
   timesOfDay?: string[];
   route: MedicationRoute;
@@ -141,6 +143,11 @@ export class MARService {
     if (med.status !== 'active') {
       throw new BadRequestException('Cannot schedule a discontinued medication');
     }
+    if (med.isPrn) {
+      throw new BadRequestException(
+        'PRN medication is given as needed — carers record it without a schedule',
+      );
+    }
     if (med.serviceUserId !== dto.serviceUserId) {
       throw new BadRequestException('Medication does not belong to this service user');
     }
@@ -235,6 +242,85 @@ export class MARService {
       );
     }
     return saved;
+  }
+
+  /**
+   * Carer records giving a PRN ("as needed") medication. No scheduled dose
+   * exists — the record is created on the spot, and managers are notified
+   * so PRN usage is always visible.
+   */
+  async recordPRN(
+    tenantId: string,
+    careWorkerId: string,
+    medicationId: string,
+    dto: AdministerDoseDto,
+  ): Promise<MARRecordEntity> {
+    const med = await this.getMedication(tenantId, medicationId);
+    if (med.status !== 'active') {
+      throw new BadRequestException('This medication has been discontinued');
+    }
+    if (!med.isPrn) {
+      throw new BadRequestException('This medication is not PRN — record its scheduled dose instead');
+    }
+    if (!CARER_OUTCOMES.includes(dto.status)) {
+      throw new BadRequestException(
+        'Status must be one of: given, parent_administered, refused, not_administered, other',
+      );
+    }
+    if (!dto.initials?.trim()) {
+      throw new BadRequestException('Your initials are required as a signature');
+    }
+    if (dto.status === MARStatus.OTHER && !dto.reason?.trim()) {
+      throw new BadRequestException('Please state the reason when selecting Other');
+    }
+    const timeCompleted = new Date(dto.timeCompleted);
+    if (isNaN(timeCompleted.getTime())) {
+      throw new BadRequestException('Invalid time completed');
+    }
+    if (med.isControlled && dto.status === MARStatus.GIVEN && !dto.witnessId && !dto.witnessInitials?.trim()) {
+      throw new BadRequestException('Controlled drug administration requires a witness');
+    }
+
+    // Guard against accidental double-recording within 30 minutes
+    const windowStart = new Date(timeCompleted.getTime() - 30 * 60 * 1000);
+    const windowEnd = new Date(timeCompleted.getTime() + 30 * 60 * 1000);
+    const duplicate = await this.marRepo.findOne({
+      where: {
+        tenantId,
+        medicationId,
+        administeredAt: Between(windowStart, windowEnd),
+      },
+    });
+    if (duplicate) {
+      throw new BadRequestException('A PRN record already exists for this medication within 30 minutes');
+    }
+
+    const record = await this.marRepo.save(
+      this.marRepo.create({
+        tenantId,
+        careWorkerId,
+        medicationId,
+        serviceUserId: med.serviceUserId,
+        scheduledAt: timeCompleted, // PRN has no schedule; anchor to when it was given
+        administeredAt: timeCompleted,
+        recordedAt: new Date(),
+        status: dto.status,
+        initials: dto.initials.trim().toUpperCase(),
+        reasonNotGiven: dto.reason,
+        notes: dto.notes,
+        witnessId: dto.witnessId,
+        witnessInitials: dto.witnessInitials?.trim().toUpperCase(),
+      }),
+    );
+
+    await this.notifications.notifyManagers(
+      tenantId,
+      'medication_alert',
+      `PRN medication ${dto.status === MARStatus.GIVEN ? 'given' : dto.status.replace(/_/g, ' ')}`,
+      `${med.name}${med.quantity ? ` (${med.quantity})` : ''} — recorded by initials ${record.initials}${dto.reason ? `: ${dto.reason}` : ''}`,
+      { marRecordId: record.id, serviceUserId: med.serviceUserId },
+    );
+    return record;
   }
 
   async recordMAR(tenantId: string, careWorkerId: string, dto: RecordMARDto): Promise<MARRecordEntity> {

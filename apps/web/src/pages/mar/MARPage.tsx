@@ -33,6 +33,8 @@ interface Medication {
   prescriber?: string;
   isControlled: boolean;
   cdSchedule?: string;
+  isPrn: boolean;
+  prnInstructions?: string;
 }
 
 interface DailyMARSummary {
@@ -86,6 +88,8 @@ interface MedicationForm {
   prescriber: string;
   isControlled: boolean;
   cdSchedule: string;
+  isPrn: boolean;
+  prnInstructions: string;
 }
 
 const emptyMedForm: MedicationForm = {
@@ -100,6 +104,8 @@ const emptyMedForm: MedicationForm = {
   prescriber: '',
   isControlled: false,
   cdSchedule: 'schedule_2',
+  isPrn: false,
+  prnInstructions: '',
 };
 
 export function MARPage() {
@@ -230,6 +236,8 @@ export function MARPage() {
       prescriber: med.prescriber ?? '',
       isControlled: med.isControlled,
       cdSchedule: med.cdSchedule ?? 'schedule_2',
+      isPrn: med.isPrn ?? false,
+      prnInstructions: med.prnInstructions ?? '',
     });
     setMedModalOpen(true);
   };
@@ -254,6 +262,8 @@ export function MARPage() {
         prescriber: medForm.prescriber.trim() || undefined,
         isControlled: medForm.isControlled,
         cdSchedule: medForm.isControlled ? medForm.cdSchedule : undefined,
+        isPrn: medForm.isPrn,
+        prnInstructions: medForm.isPrn ? medForm.prnInstructions.trim() || undefined : undefined,
       },
     });
   };
@@ -361,6 +371,14 @@ export function MARPage() {
                       {med.isControlled && (
                         <span className="text-[10px] font-bold text-red-600 uppercase">Controlled drug</span>
                       )}
+                      {med.isPrn && (
+                        <span
+                          className="block text-[10px] font-bold text-violet-600 uppercase"
+                          title={med.prnInstructions}
+                        >
+                          PRN — as needed
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600 max-w-[220px]">{med.purpose ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{med.dosage}</td>
@@ -370,17 +388,19 @@ export function MARPage() {
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{med.frequency}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          title="Schedule doses"
-                          className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600"
-                          onClick={() => {
-                            setScheduleFor(med);
-                            setScheduleDate(todayStr);
-                            setScheduleTimes(['08:00']);
-                          }}
-                        >
-                          <CalendarClock className="w-4 h-4" />
-                        </button>
+                        {!med.isPrn && (
+                          <button
+                            title="Schedule doses"
+                            className="p-1.5 rounded-lg hover:bg-violet-50 text-violet-600"
+                            onClick={() => {
+                              setScheduleFor(med);
+                              setScheduleDate(todayStr);
+                              setScheduleTimes(['08:00']);
+                            }}
+                          >
+                            <CalendarClock className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           title="Edit"
                           className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
@@ -675,6 +695,24 @@ export function MARPage() {
               placeholder="e.g. Dr Patel"
             />
           </Field>
+          <div className="sm:col-span-2 space-y-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={medForm.isPrn}
+                onChange={(e) => setMedForm({ ...medForm, isPrn: e.target.checked })}
+              />
+              PRN — give as needed (ongoing medication with no fixed schedule)
+            </label>
+            {medForm.isPrn && (
+              <input
+                className="input w-full"
+                placeholder="When to give it, e.g. Give when chesty. Max 4 doses in 24 hours."
+                value={medForm.prnInstructions}
+                onChange={(e) => setMedForm({ ...medForm, prnInstructions: e.target.value })}
+              />
+            )}
+          </div>
           <div className="sm:col-span-2 flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <input

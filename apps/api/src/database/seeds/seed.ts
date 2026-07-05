@@ -212,6 +212,30 @@ async function main() {
     medEntities.push(med);
   }
 
+  // ── PRN ("as needed") medication — no schedule, carers give when required ─
+  const prnName = 'Sodium chloride 0.9%';
+  let prnMed = await medications.findOne({ where: { tenantId, serviceUserId: su1.id, name: prnName } });
+  if (!prnMed) {
+    prnMed = await medications.save(
+      medications.create({
+        tenantId,
+        serviceUserId: su1.id,
+        name: prnName,
+        purpose: 'Saline nebuliser to ease breathing when congested',
+        dosage: '2.5ml',
+        quantity: '1 nebule',
+        formulation: MedicationFormulation.LIQUID,
+        frequency: 'As required (PRN)',
+        route: MedicationRoute.INHALED,
+        isPrn: true,
+        prnInstructions: 'Give when chesty or short of breath. Max 4 nebules in 24 hours.',
+        isControlled: false,
+        status: 'active',
+      } as DeepPartial<MedicationEntity>),
+    );
+    console.log('Created PRN medication', prnName, 'for', su1.firstName);
+  }
+
   // ── Today's scheduled doses (admin sets the exact date & time) ────────────
   const doseDayStart = new Date();
   doseDayStart.setHours(0, 0, 0, 0);

@@ -27,6 +27,14 @@ export class MedicationEntity extends BaseEntity {
   @Column({ type: 'enum', enum: MedicationFormulation, nullable: true })
   formulation?: MedicationFormulation;
 
+  /** PRN = "as needed" — no fixed schedule; carers give it when required. */
+  @Column({ name: 'is_prn', default: false })
+  isPrn: boolean;
+
+  /** When/why to give it, e.g. "For pain — max 4 doses in 24 hours". */
+  @Column({ name: 'prn_instructions', type: 'text', nullable: true })
+  prnInstructions?: string;
+
   @Column()
   frequency: string;
 

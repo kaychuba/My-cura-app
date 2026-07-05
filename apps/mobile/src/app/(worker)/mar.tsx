@@ -21,6 +21,8 @@ interface Medication {
   formulation?: string;
   route: string;
   isControlled: boolean;
+  isPrn?: boolean;
+  prnInstructions?: string;
 }
 
 interface MARRecord {
@@ -57,6 +59,7 @@ export default function MARScreen() {
   const [records, setRecords] = useState<MARRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [recording, setRecording] = useState<MARRecord | null>(null);
+  const [prnRecording, setPrnRecording] = useState<Medication | null>(null);
 
   const load = useCallback(async () => {
     if (!serviceUserId) return;
@@ -131,6 +134,7 @@ export default function MARScreen() {
                 <View style={styles.colName}>
                   <Text style={styles.tdName}>{m.name}</Text>
                   {m.isControlled && <Text style={styles.cdTag}>Controlled drug</Text>}
+                  {m.isPrn && <Text style={styles.prnTag}>PRN — as needed</Text>}
                 </View>
                 <Text style={[styles.td, styles.colPurpose]}>{m.purpose ?? '—'}</Text>
                 <Text style={[styles.td, styles.colSmall]}>{m.dosage}</Text>
@@ -141,6 +145,36 @@ export default function MARScreen() {
             ))}
           </View>
         </ScrollView>
+      )}
+
+      {/* ── PRN medication (give when needed — only shown when the admin set any) ── */}
+      {medications.some((m) => m.isPrn) && (
+        <>
+          <Text style={styles.sectionTitle}>PRN — Give When Needed</Text>
+          <Text style={styles.sectionSub}>
+            Ongoing as-needed medication set by your manager. Record each time you give it.
+          </Text>
+          {medications.filter((m) => m.isPrn).map((m) => (
+            <View key={m.id} style={styles.prnCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dueMedName}>{m.name}</Text>
+                <Text style={styles.dueMedDetail}>
+                  {[m.dosage, m.quantity, m.formulation].filter(Boolean).join(' · ')}
+                </Text>
+                {!!m.prnInstructions && (
+                  <Text style={styles.prnInstructions}>{m.prnInstructions}</Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.recordButton}
+                activeOpacity={0.8}
+                onPress={() => setPrnRecording(m)}
+              >
+                <Text style={styles.recordButtonText}>Record</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </>
       )}
 
       {/* ── Due today (admin-scheduled doses awaiting the carer) ── */}
@@ -232,10 +266,13 @@ export default function MARScreen() {
 
       <RecordDoseModal
         record={recording}
-        medication={recording ? medById.get(recording.medicationId) : undefined}
+        medication={
+          prnRecording ?? (recording ? medById.get(recording.medicationId) : undefined)
+        }
+        prn={!!prnRecording}
         defaultInitials={`${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase()}
-        onClose={() => setRecording(null)}
-        onSaved={() => { setRecording(null); load(); }}
+        onClose={() => { setRecording(null); setPrnRecording(null); }}
+        onSaved={() => { setRecording(null); setPrnRecording(null); load(); }}
       />
     </ScrollView>
   );
@@ -278,9 +315,10 @@ function TimeCompletedPicker({ value, onChange }: { value: Date; onChange: (d: D
   );
 }
 
-function RecordDoseModal({ record, medication, defaultInitials, onClose, onSaved }: {
+function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, onSaved }: {
   record: MARRecord | null;
   medication?: Medication;
+  prn?: boolean;
   defaultInitials: string;
   onClose: () => void;
   onSaved: () => void;
@@ -292,17 +330,19 @@ function RecordDoseModal({ record, medication, defaultInitials, onClose, onSaved
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const open = !!record || (prn && !!medication);
+
   useEffect(() => {
-    if (record) {
+    if (open) {
       setOutcome(null);
       setTimeCompleted(new Date());
       setInitials(defaultInitials);
       setWitnessInitials('');
       setReason('');
     }
-  }, [record, defaultInitials]);
+  }, [open, record, medication, defaultInitials]);
 
-  if (!record) return null;
+  if (!open) return null;
 
   const needsWitness = !!medication?.isControlled && outcome === MARStatus.GIVEN;
   const isOther = outcome === MARStatus.OTHER;
@@ -328,13 +368,18 @@ function RecordDoseModal({ record, medication, defaultInitials, onClose, onSaved
     }
     setSaving(true);
     try {
-      await apiClient.patch(`/mar/records/${record.id}/administer`, {
+      const payload = {
         status: outcome,
         timeCompleted: timeCompleted.toISOString(),
         initials: initials.trim(),
         reason: reason.trim() || undefined,
         witnessInitials: needsWitness ? witnessInitials.trim() : undefined,
-      });
+      };
+      if (prn && medication) {
+        await apiClient.post(`/mar/prn/${medication.id}`, payload);
+      } else if (record) {
+        await apiClient.patch(`/mar/records/${record.id}/administer`, payload);
+      }
       Alert.alert('Recorded', 'The dose has been recorded on the MAR chart.');
       onSaved();
     } catch (e: unknown) {
@@ -356,9 +401,15 @@ function RecordDoseModal({ record, medication, defaultInitials, onClose, onSaved
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{medication?.name ?? 'Record dose'}</Text>
             <Text style={styles.modalSub}>
-              Due {format(parseISO(record.scheduledAt), 'HH:mm, EEE d MMM')}
-              {medication ? ` · ${[medication.dosage, medication.quantity].filter(Boolean).join(' · ')}` : ''}
+              {prn
+                ? `PRN (as needed)${medication ? ` · ${[medication.dosage, medication.quantity].filter(Boolean).join(' · ')}` : ''}`
+                : `Due ${format(parseISO(record!.scheduledAt), 'HH:mm, EEE d MMM')}${
+                    medication ? ` · ${[medication.dosage, medication.quantity].filter(Boolean).join(' · ')}` : ''
+                  }`}
             </Text>
+            {prn && !!medication?.prnInstructions && (
+              <Text style={styles.prnModalNote}>{medication.prnInstructions}</Text>
+            )}
 
             <Text style={styles.fieldLabel}>Outcome</Text>
             <View style={styles.outcomeWrap}>
@@ -480,6 +531,17 @@ const styles = StyleSheet.create({
   tdName: { fontSize: 13, fontWeight: '700', color: colors.textPrimary },
   capitalize: { textTransform: 'capitalize' },
   cdTag: { fontSize: 10, fontWeight: '700', color: colors.danger, marginTop: 2 },
+  prnTag: { fontSize: 10, fontWeight: '700', color: colors.primaryLight, marginTop: 2 },
+  prnCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.primaryTint, borderRadius: 12, padding: 12, marginBottom: 10,
+    borderWidth: 1, borderColor: colors.primaryBorder,
+  },
+  prnInstructions: { fontSize: 12, color: colors.primary, marginTop: 4, fontStyle: 'italic' },
+  prnModalNote: {
+    fontSize: 13, color: colors.primary, backgroundColor: colors.primaryTint,
+    borderRadius: 8, padding: 10, marginTop: 8, fontStyle: 'italic',
+  },
   colName: { width: 120, paddingRight: 8 },
   colPurpose: { width: 170, paddingRight: 8 },
   colSmall: { width: 92, paddingRight: 8 },

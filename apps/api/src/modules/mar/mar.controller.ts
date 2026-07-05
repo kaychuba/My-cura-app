@@ -87,6 +87,20 @@ export class MARController {
     return this.marService.scheduleDoses(tenantId, dto);
   }
 
+  @Post('prn/:medicationId')
+  @Roles(UserRole.CARE_WORKER)
+  @ApiOperation({
+    summary: 'Carer: record a PRN (as-needed) medication — no schedule required',
+  })
+  recordPRN(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthUser,
+    @Param('medicationId', ParseUUIDPipe) medicationId: string,
+    @Body() dto: AdministerDoseDto,
+  ) {
+    return this.marService.recordPRN(tenantId, user.id, medicationId, dto);
+  }
+
   @Patch('records/:id/administer')
   @Roles(UserRole.CARE_WORKER)
   @ApiOperation({
