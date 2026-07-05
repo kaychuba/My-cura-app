@@ -9,6 +9,7 @@ import { In, Repository } from 'typeorm';
 import { EscalationLevel } from '@my-cura/shared-types';
 import { VisitNoteEntity } from './entities/visit-note.entity';
 import { ShiftEntity } from '../scheduling/entities/shift.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CreateVisitNoteDto {
   shiftId: string;
@@ -37,6 +38,7 @@ export class VisitNotesService {
     private noteRepo: Repository<VisitNoteEntity>,
     @InjectRepository(ShiftEntity)
     private shiftRepo: Repository<ShiftEntity>,
+    private notifications: NotificationsService,
   ) {}
 
   /** Care worker writes up their own visit; the shift must be theirs. */
@@ -74,7 +76,18 @@ export class VisitNotesService {
       escalatedAt: isEscalated ? new Date() : undefined,
       escalationNotes: dto.escalationNotes,
     });
-    return this.noteRepo.save(note);
+    const saved = await this.noteRepo.save(note);
+
+    if (isEscalated) {
+      await this.notifications.notifyManagers(
+        tenantId,
+        'escalation',
+        `${escalationLevel.toUpperCase()} escalation raised`,
+        dto.escalationNotes ?? dto.narrative ?? 'A care worker has raised a concern',
+        { visitNoteId: saved.id, serviceUserId: saved.serviceUserId },
+      );
+    }
+    return saved;
   }
 
   async listMine(tenantId: string, careWorkerId: string, page = 1, limit = 20) {

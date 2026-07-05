@@ -7,6 +7,7 @@ import { MedicationEntity } from './entities/medication.entity';
 import { MARRecordEntity } from './entities/mar-record.entity';
 import { MARStatus, MedicationFormulation, MedicationRoute } from '@my-cura/shared-types';
 import { encrypt, decrypt } from '@my-cura/shared-utils';
+import { NotificationsService } from '../notifications/notifications.service';
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
 const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
@@ -99,6 +100,7 @@ export class MARService {
     private medicationRepo: Repository<MedicationEntity>,
     @InjectRepository(MARRecordEntity)
     private marRepo: Repository<MARRecordEntity>,
+    private notifications: NotificationsService,
   ) {}
 
   async listMedications(tenantId: string, serviceUserId: string): Promise<MedicationEntity[]> {
@@ -220,7 +222,19 @@ export class MARService {
     if (dto.signatureSvg) {
       record.signatureSvgEnc = encrypt(dto.signatureSvg, process.env['ENCRYPTION_KEY'] ?? '');
     }
-    return this.marRepo.save(record);
+    const saved = await this.marRepo.save(record);
+
+    // Managers hear about every dose that was NOT given as prescribed.
+    if (dto.status !== MARStatus.GIVEN && dto.status !== MARStatus.PARENT_ADMINISTERED) {
+      await this.notifications.notifyManagers(
+        tenantId,
+        'medication_alert',
+        `Medication ${dto.status.replace(/_/g, ' ')}`,
+        `${med.name} (due ${record.scheduledAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}) — ${dto.reason ?? 'no reason given'}`,
+        { marRecordId: saved.id, serviceUserId: saved.serviceUserId },
+      );
+    }
+    return saved;
   }
 
   async recordMAR(tenantId: string, careWorkerId: string, dto: RecordMARDto): Promise<MARRecordEntity> {
