@@ -8,8 +8,26 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { EscalationLevel } from '@my-cura/shared-types';
 import { VisitNoteEntity } from './entities/visit-note.entity';
+import { CareDocEntryEntity, CareExecution } from './entities/care-doc-entry.entity';
 import { ShiftEntity } from '../scheduling/entities/shift.entity';
+import { ServiceUserEntity } from '../service-users/entities/service-user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+
+/** Allowed reasons per execution outcome — mirrored by the carer app. */
+export const EXECUTION_REASONS: Record<CareExecution, string[]> = {
+  executed: ['fully_executed', 'adequate', 'satisfactory', 'insufficient'],
+  partially_executed: ['partially_executed'],
+  not_executed: ['refused', 'other'],
+  other: ['not_required'],
+};
+
+export interface RecordCareDocDto {
+  serviceUserId: string;
+  slotAt: string;
+  documentation: string;
+  execution: CareExecution;
+  reason: string;
+}
 
 export interface CreateVisitNoteDto {
   shiftId: string;
@@ -38,8 +56,107 @@ export class VisitNotesService {
     private noteRepo: Repository<VisitNoteEntity>,
     @InjectRepository(ShiftEntity)
     private shiftRepo: Repository<ShiftEntity>,
+    @InjectRepository(CareDocEntryEntity)
+    private careDocRepo: Repository<CareDocEntryEntity>,
+    @InjectRepository(ServiceUserEntity)
+    private serviceUserRepo: Repository<ServiceUserEntity>,
     private notifications: NotificationsService,
   ) {}
+
+  /** The day's hourly slots for a service user, from the admin's allocation. */
+  private daySlots(su: ServiceUserEntity, date: Date): Date[] {
+    if (!su.careHoursPerDay || su.careHoursPerDay < 1) return [];
+    const [h, m] = (su.careDayStart ?? '08:00').split(':').map(Number);
+    const start = new Date(date);
+    start.setHours(h, m || 0, 0, 0);
+    return Array.from({ length: su.careHoursPerDay }, (_, i) => {
+      const slot = new Date(start);
+      slot.setHours(start.getHours() + i);
+      return slot;
+    });
+  }
+
+  /** Hourly care documentation sheet for one service user and day. */
+  async getCareDoc(tenantId: string, serviceUserId: string, dateStr?: string) {
+    const su = await this.serviceUserRepo.findOne({ where: { id: serviceUserId, tenantId } });
+    if (!su) throw new NotFoundException('Service user not found');
+
+    const date = dateStr ? new Date(dateStr) : new Date();
+    const slots = this.daySlots(su, date);
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const dayEntries = await this.careDocRepo
+      .createQueryBuilder('e')
+      .where('e.tenant_id = :tenantId', { tenantId })
+      .andWhere('e.service_user_id = :serviceUserId', { serviceUserId })
+      .andWhere('e.slot_at >= :dayStart AND e.slot_at < :dayEnd', { dayStart, dayEnd })
+      .getMany();
+
+    const byTime = new Map(dayEntries.map((e) => [new Date(e.slotAt).getTime(), e]));
+    return {
+      serviceUser: { id: su.id, firstName: su.firstName, lastName: su.lastName },
+      allocatedHours: su.careHoursPerDay ?? 0,
+      careDayStart: su.careDayStart ?? '08:00',
+      slots: slots.map((slotAt) => ({
+        slotAt: slotAt.toISOString(),
+        entry: byTime.get(slotAt.getTime()) ?? null,
+      })),
+    };
+  }
+
+  /** Carer writes the documentation for one allocated hour. */
+  async recordCareDoc(
+    tenantId: string,
+    careWorkerId: string,
+    dto: RecordCareDocDto,
+  ): Promise<CareDocEntryEntity> {
+    const su = await this.serviceUserRepo.findOne({ where: { id: dto.serviceUserId, tenantId } });
+    if (!su) throw new NotFoundException('Service user not found');
+    if (!su.careHoursPerDay) {
+      throw new BadRequestException('No care hours allocated — ask your manager to set them');
+    }
+    if (!dto.documentation?.trim()) {
+      throw new BadRequestException('Please write the care documentation for this hour');
+    }
+    const allowedReasons = EXECUTION_REASONS[dto.execution];
+    if (!allowedReasons) {
+      throw new BadRequestException(
+        'Execution must be one of: executed, partially_executed, not_executed, other',
+      );
+    }
+    if (!allowedReasons.includes(dto.reason)) {
+      throw new BadRequestException(
+        `For "${dto.execution.replace(/_/g, ' ')}" the reason must be one of: ${allowedReasons.join(', ')}`,
+      );
+    }
+
+    const slotAt = new Date(dto.slotAt);
+    if (isNaN(slotAt.getTime())) throw new BadRequestException('Invalid slot time');
+    const validSlot = this.daySlots(su, slotAt).some((s) => s.getTime() === slotAt.getTime());
+    if (!validSlot) {
+      throw new BadRequestException("That time is not one of this service user's allocated hours");
+    }
+
+    const existing = await this.careDocRepo.findOne({
+      where: { tenantId, serviceUserId: dto.serviceUserId, slotAt },
+    });
+    if (existing) throw new BadRequestException('This hour has already been documented');
+
+    return this.careDocRepo.save(
+      this.careDocRepo.create({
+        tenantId,
+        serviceUserId: dto.serviceUserId,
+        careWorkerId,
+        slotAt,
+        documentation: dto.documentation.trim(),
+        execution: dto.execution,
+        reason: dto.reason,
+      }),
+    );
+  }
 
   /** Care worker writes up their own visit; the shift must be theirs. */
   async create(tenantId: string, careWorkerId: string, dto: CreateVisitNoteDto): Promise<VisitNoteEntity> {

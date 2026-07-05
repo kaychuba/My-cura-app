@@ -11,6 +11,8 @@ export interface CreateServiceUserDto {
   contactDetails?: Record<string, unknown>;
   fundingSource?: ServiceUserEntity['fundingSource'];
   careLevel?: ServiceUserEntity['careLevel'];
+  careHoursPerDay?: number;
+  careDayStart?: string;
   gpDetails?: Record<string, unknown>;
   allergies?: string[];
   medicalConditions?: string[];

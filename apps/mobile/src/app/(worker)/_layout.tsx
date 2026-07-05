@@ -82,7 +82,7 @@ export default function WorkerLayout() {
 
         {/* Screens reachable from the menu/dashboard — hidden from the tab bar */}
         <Tabs.Screen name="profile" options={{ href: null, headerTitle: 'My Profile' }} />
-        <Tabs.Screen name="visit-notes" options={{ href: null, headerTitle: 'Visit Notes' }} />
+        <Tabs.Screen name="visit-notes" options={{ href: null, headerTitle: 'Care Notes' }} />
         <Tabs.Screen name="mar" options={{ href: null, headerTitle: 'Medication (MAR)' }} />
         <Tabs.Screen name="incident-report" options={{ href: null, headerTitle: 'Report an Incident' }} />
         <Tabs.Screen name="whistleblowing" options={{ href: null, headerTitle: 'Speak Up' }} />

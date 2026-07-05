@@ -5,7 +5,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import {
-  VisitNotesService, CreateVisitNoteDto, UpdateEscalationDto,
+  VisitNotesService, CreateVisitNoteDto, UpdateEscalationDto, RecordCareDocDto,
 } from './visit-notes.service';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -35,6 +35,28 @@ export class VisitNotesController {
     @Body() dto: CreateVisitNoteDto,
   ) {
     return this.visitNotesService.create(tenantId, user.id, dto);
+  }
+
+  @Get('care-doc')
+  @Roles(UserRole.CARE_WORKER)
+  @ApiOperation({ summary: "A service user's hourly care documentation sheet for a day" })
+  getCareDoc(
+    @CurrentTenant() tenantId: string,
+    @Query('serviceUserId', ParseUUIDPipe) serviceUserId: string,
+    @Query('date') date?: string,
+  ) {
+    return this.visitNotesService.getCareDoc(tenantId, serviceUserId, date);
+  }
+
+  @Post('care-doc')
+  @Roles(UserRole.CARE_WORKER)
+  @ApiOperation({ summary: 'Write the care documentation for one allocated hour' })
+  recordCareDoc(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RecordCareDocDto,
+  ) {
+    return this.visitNotesService.recordCareDoc(tenantId, user.id, dto);
   }
 
   @Get('mine')

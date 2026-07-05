@@ -16,7 +16,7 @@ interface MenuOption {
 const OPTIONS: MenuOption[] = [
   { icon: 'clock', label: 'Clock In / Out', description: 'Start or end a visit', route: '/(worker)/clock-in' },
   { icon: 'calendar', label: 'My Schedule', description: 'Shifts on the calendar', route: '/(worker)/schedule' },
-  { icon: 'edit-3', label: 'Visit Notes', description: 'Record care given', route: '/(worker)/visit-notes' },
+  { icon: 'edit-3', label: 'Care Notes', description: 'Hourly care documentation', route: '/(worker)/visit-notes' },
   { icon: 'clipboard', label: 'MAR Chart', description: 'Medication records', route: '/(worker)/mar' },
   { icon: 'user', label: 'Body Map', description: 'Log marks or injuries', route: '/(worker)/body-map' },
   { icon: 'alert-triangle', label: 'Report Incident', description: 'Accidents & events', route: '/(worker)/incident-report' },

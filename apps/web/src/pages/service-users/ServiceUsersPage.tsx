@@ -26,6 +26,8 @@ export interface ServiceUser {
   medicalConditions?: string[];
   mobilityNeeds?: string;
   communicationNeeds?: string;
+  careHoursPerDay?: number;
+  careDayStart?: string;
 }
 
 const CARE_LEVEL_COLOR: Record<string, 'green' | 'amber' | 'red' | 'purple'> = {
@@ -51,6 +53,8 @@ interface SUForm {
   medicalConditions: string;
   mobilityNeeds: string;
   communicationNeeds: string;
+  careHoursPerDay: string;
+  careDayStart: string;
 }
 
 const emptyForm: SUForm = {
@@ -58,6 +62,7 @@ const emptyForm: SUForm = {
   line1: '', line2: '', city: '', postcode: '', lat: '', lon: '',
   careLevel: '', fundingSource: '',
   allergies: '', medicalConditions: '', mobilityNeeds: '', communicationNeeds: '',
+  careHoursPerDay: '', careDayStart: '08:00',
 };
 
 export function age(dob: string): number {
@@ -134,6 +139,8 @@ export function ServiceUsersPage() {
       medicalConditions: (su.medicalConditions ?? []).join(', '),
       mobilityNeeds: su.mobilityNeeds ?? '',
       communicationNeeds: su.communicationNeeds ?? '',
+      careHoursPerDay: su.careHoursPerDay != null ? String(su.careHoursPerDay) : '',
+      careDayStart: su.careDayStart ?? '08:00',
     });
     setModalOpen(true);
   };
@@ -168,6 +175,8 @@ export function ServiceUsersPage() {
         medicalConditions: csv(form.medicalConditions),
         mobilityNeeds: form.mobilityNeeds.trim() || undefined,
         communicationNeeds: form.communicationNeeds.trim() || undefined,
+        careHoursPerDay: form.careHoursPerDay ? Number(form.careHoursPerDay) : undefined,
+        careDayStart: form.careHoursPerDay ? form.careDayStart : undefined,
       },
     });
   };
@@ -337,6 +346,21 @@ export function ServiceUsersPage() {
           </div>
           <F label="Mobility needs"><input className="input w-full" value={form.mobilityNeeds} onChange={(e) => setForm({ ...form, mobilityNeeds: e.target.value })} /></F>
           <F label="Communication needs"><input className="input w-full" value={form.communicationNeeds} onChange={(e) => setForm({ ...form, communicationNeeds: e.target.value })} /></F>
+          <F label="Care hours allocated per day">
+            <input
+              className="input w-full" type="number" min="1" max="24"
+              placeholder="e.g. 10 — carers document each hour"
+              value={form.careHoursPerDay}
+              onChange={(e) => setForm({ ...form, careHoursPerDay: e.target.value })}
+            />
+          </F>
+          <F label="Care day starts at">
+            <input
+              className="input w-full" type="time"
+              value={form.careDayStart}
+              onChange={(e) => setForm({ ...form, careDayStart: e.target.value })}
+            />
+          </F>
         </div>
       </Modal>
     </div>

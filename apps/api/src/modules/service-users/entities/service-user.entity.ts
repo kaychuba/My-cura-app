@@ -34,6 +34,14 @@ export class ServiceUserEntity extends BaseEntity {
   @Column({ name: 'care_level', nullable: true })
   careLevel?: 'low' | 'medium' | 'high' | 'critical';
 
+  /** Daily care hours the admin has allocated — one care-doc entry per hour. */
+  @Column({ name: 'care_hours_per_day', type: 'int', nullable: true })
+  careHoursPerDay?: number;
+
+  /** When the care day begins, e.g. '08:00'. */
+  @Column({ name: 'care_day_start', nullable: true })
+  careDayStart?: string;
+
   @Column({ default: 'active' })
   status: 'active' | 'inactive' | 'deceased' | 'hospital';
 

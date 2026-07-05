@@ -165,6 +165,20 @@ async function main() {
     lon: -2.2189,
   });
 
+  // ── Allocated daily care hours (drives hourly care documentation) ─────────
+  const allocations: Array<[ServiceUserEntity, number, string]> = [
+    [su1, 10, '08:00'],
+    [su2, 4, '09:00'],
+  ];
+  for (const [su, hours, start] of allocations) {
+    if (!su.careHoursPerDay) {
+      su.careHoursPerDay = hours;
+      su.careDayStart = start;
+      await serviceUsers.save(su);
+      console.log(`Allocated ${hours}h/day care (from ${start}) to`, su.firstName);
+    }
+  }
+
   // ── Medications (admin-set: purpose, dose, quantity, formulation, route) ──
   const meds: Array<[
     ServiceUserEntity, string, string, string, string,
