@@ -383,8 +383,39 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
       Alert.alert('Recorded', 'The dose has been recorded on the MAR chart.');
       onSaved();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      Alert.alert('Error', msg ?? 'Could not save this record. Please try again.');
+      const err = e as { response?: { status?: number; data?: { message?: string } } };
+      // PRN repeat within 30 min: let the carer confirm it was really given again
+      if (prn && medication && err.response?.status === 409) {
+        Alert.alert(
+          'Given again so soon?',
+          `${medication.name} was already recorded in the last 30 minutes. Record another administration anyway?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Yes, record it',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await apiClient.post(`/mar/prn/${medication.id}`, {
+                    status: outcome,
+                    timeCompleted: timeCompleted.toISOString(),
+                    initials: initials.trim(),
+                    reason: reason.trim() || undefined,
+                    witnessInitials: needsWitness ? witnessInitials.trim() : undefined,
+                    force: true,
+                  });
+                  Alert.alert('Recorded', 'The dose has been recorded on the MAR chart.');
+                  onSaved();
+                } catch {
+                  Alert.alert('Error', 'Could not save this record. Please try again.');
+                }
+              },
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Error', err.response?.data?.message ?? 'Could not save this record. Please try again.');
+      }
     } finally {
       setSaving(false);
     }

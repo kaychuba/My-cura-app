@@ -1,5 +1,5 @@
 import {
-  Injectable, NotFoundException, BadRequestException, ForbiddenException,
+  Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, IsNull } from 'typeorm';
@@ -78,6 +78,8 @@ export interface AdministerDoseDto {
   witnessId?: string;
   witnessInitials?: string;
   signatureSvg?: string;
+  /** PRN only: confirm recording again within the 30-minute repeat window. */
+  force?: boolean;
 }
 
 export interface MARChartQuery {
@@ -281,18 +283,24 @@ export class MARService {
       throw new BadRequestException('Controlled drug administration requires a witness');
     }
 
-    // Guard against accidental double-recording within 30 minutes
-    const windowStart = new Date(timeCompleted.getTime() - 30 * 60 * 1000);
-    const windowEnd = new Date(timeCompleted.getTime() + 30 * 60 * 1000);
-    const duplicate = await this.marRepo.findOne({
-      where: {
-        tenantId,
-        medicationId,
-        administeredAt: Between(windowStart, windowEnd),
-      },
-    });
-    if (duplicate) {
-      throw new BadRequestException('A PRN record already exists for this medication within 30 minutes');
+    // Guard against accidental double-recording within 30 minutes.
+    // The carer can confirm and override (force) — PRN must be recordable
+    // whenever it is genuinely given.
+    if (!dto.force) {
+      const windowStart = new Date(timeCompleted.getTime() - 30 * 60 * 1000);
+      const windowEnd = new Date(timeCompleted.getTime() + 30 * 60 * 1000);
+      const duplicate = await this.marRepo.findOne({
+        where: {
+          tenantId,
+          medicationId,
+          administeredAt: Between(windowStart, windowEnd),
+        },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          'This PRN medication was already recorded within 30 minutes. Confirm to record it again.',
+        );
+      }
     }
 
     const record = await this.marRepo.save(
