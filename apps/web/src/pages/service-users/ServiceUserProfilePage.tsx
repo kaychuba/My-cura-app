@@ -2,8 +2,9 @@ import { useState, type ReactNode } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Heart, MapPin, AlertTriangle, Pill, FileText,
-  ClipboardList, Plus, CheckCircle, CalendarCheck,
+  ArrowLeft, MapPin, AlertTriangle, Pill, FileText,
+  ClipboardList, Plus, CheckCircle, CalendarCheck, Phone, Mail,
+  Users, Building2, Cross, ChevronLeft, ChevronRight, ClipboardCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Badge } from '@my-cura/ui-web';
@@ -55,11 +56,50 @@ const PLAN_STATUS_COLOR: Record<string, 'green' | 'amber' | 'gray'> = {
   archived: 'gray',
 };
 
+interface CareDocEntry {
+  id: string;
+  documentation: string;
+  execution: 'executed' | 'partially_executed' | 'not_executed' | 'other';
+  reason: string;
+  careWorkerName: string;
+  createdAt: string;
+}
+
+interface CareDocSheet {
+  allocatedHours: number;
+  careDayStart: string;
+  slots: { slotAt: string; entry: CareDocEntry | null }[];
+}
+
+const EXECUTION_STYLE: Record<string, { label: string; cls: string }> = {
+  executed: { label: 'Executed', cls: 'bg-green-100 text-green-700' },
+  partially_executed: { label: 'Partially Executed', cls: 'bg-amber-100 text-amber-700' },
+  not_executed: { label: 'Not Executed', cls: 'bg-red-100 text-red-700' },
+  other: { label: 'Other', cls: 'bg-violet-100 text-violet-700' },
+};
+
+const REASON_LABELS: Record<string, string> = {
+  fully_executed: 'Fully executed', adequate: 'Adequate', satisfactory: 'Satisfactory',
+  insufficient: 'Insufficient', partially_executed: 'Partially executed',
+  refused: 'Refused', other: 'Other', not_required: 'Not required',
+};
+
+/** Same timing rules as the carer app: orange due, red 3h missed, green done. */
+function slotTone(slotAt: string, hasEntry: boolean): { label: string; cls: string } {
+  if (hasEntry) return { label: 'Done', cls: 'text-green-600' };
+  const t = new Date(slotAt).getTime();
+  const n = Date.now();
+  if (n < t - 15 * 60 * 1000) return { label: 'Upcoming', cls: 'text-slate-400' };
+  if (n <= t + 3 * 60 * 60 * 1000) return { label: 'Due', cls: 'text-amber-600' };
+  return { label: 'Missed', cls: 'text-red-600' };
+}
+
 export function ServiceUserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'careplan' | 'notes'>('careplan');
+  const [tab, setTab] = useState<'careplan' | 'notes' | 'caredoc'>('caredoc');
+  const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState({
     title: '',
@@ -84,6 +124,14 @@ export function ServiceUserProfilePage() {
     queryKey: ['visit-notes', id],
     queryFn: async () => (await apiClient.get(`/visit-notes/service-user/${id}?limit=30`)).data,
     enabled: !!id,
+  });
+
+  const { data: careDoc } = useQuery<CareDocSheet>({
+    queryKey: ['care-doc', id, docDate],
+    queryFn: async () =>
+      (await apiClient.get(`/visit-notes/care-doc?serviceUserId=${id}&date=${docDate}`)).data,
+    enabled: !!id,
+    refetchInterval: 60_000, // live colour transitions for managers watching today
   });
 
   const createPlan = useMutation({
@@ -154,19 +202,32 @@ export function ServiceUserProfilePage() {
       <div className="card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
-              <Heart className="w-6 h-6 text-primary-500" />
-            </div>
+            {su.photoUrl ? (
+              <img
+                src={su.photoUrl}
+                alt={`${su.firstName} ${su.lastName}`}
+                className="w-16 h-16 rounded-2xl object-cover border border-slate-200"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
+                <span className="text-lg font-bold text-primary-500">
+                  {su.firstName?.[0]}{su.lastName?.[0]}
+                </span>
+              </div>
+            )}
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">
                 {su.firstName} {su.lastName}
               </h1>
               <p className="text-sm text-slate-500">
                 {su.dateOfBirth ? `${age(su.dateOfBirth)} years old · born ${formatDisplayDate(su.dateOfBirth)}` : ''}
+                {su.gender ? ` · ${su.gender.replace(/_/g, ' ')}` : ''}
+                {su.careCommencedOn ? ` · care since ${formatDisplayDate(su.careCommencedOn)}` : ''}
               </p>
               <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
                 <MapPin className="w-3.5 h-3.5" />
                 {su.address ? `${su.address.line1}, ${su.address.city}, ${su.address.postcode}` : 'No address'}
+                {su.address?.lat ? ` (${su.address.lat.toFixed(4)}, ${su.address.lon.toFixed(4)})` : ''}
               </p>
             </div>
           </div>
@@ -183,6 +244,55 @@ export function ServiceUserProfilePage() {
               <Pill className="w-4 h-4" /> MAR Chart
             </Link>
           </div>
+        </div>
+
+        {su.conditionSummary && (
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-300 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-3 leading-relaxed">
+            {su.conditionSummary}
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <InfoCard icon={<Phone className="w-4 h-4" />} title="Contact">
+            {su.contactDetails?.phone && <p>{su.contactDetails.phone}</p>}
+            {su.contactDetails?.email && (
+              <p className="flex items-center gap-1"><Mail className="w-3 h-3" />{su.contactDetails.email}</p>
+            )}
+            {!su.contactDetails?.phone && !su.contactDetails?.email && <p className="text-slate-400">Not set</p>}
+          </InfoCard>
+          <InfoCard icon={<Users className="w-4 h-4" />} title="Emergency contact">
+            {(su.emergencyContacts?.length ?? 0) > 0 ? (
+              su.emergencyContacts!.map((ec, i) => (
+                <p key={i}>
+                  <span className="font-medium">{ec.name}</span> ({ec.relationship}) — {ec.phone}
+                </p>
+              ))
+            ) : (
+              <p className="text-slate-400">Not set</p>
+            )}
+          </InfoCard>
+          <InfoCard icon={<Building2 className="w-4 h-4" />} title="Registered hospital">
+            {su.hospitalContact ? (
+              <>
+                <p className="font-medium">{su.hospitalContact.name}</p>
+                {su.hospitalContact.ward && <p>{su.hospitalContact.ward}</p>}
+                {su.hospitalContact.phone && <p>{su.hospitalContact.phone}</p>}
+              </>
+            ) : (
+              <p className="text-slate-400">Not set</p>
+            )}
+          </InfoCard>
+          <InfoCard icon={<Cross className="w-4 h-4" />} title="Pharmacy">
+            {su.pharmacyContact ? (
+              <>
+                <p className="font-medium">{su.pharmacyContact.name}</p>
+                {su.pharmacyContact.phone && <p>{su.pharmacyContact.phone}</p>}
+                {su.pharmacyContact.address && <p>{su.pharmacyContact.address}</p>}
+              </>
+            ) : (
+              <p className="text-slate-400">Not set</p>
+            )}
+          </InfoCard>
         </div>
 
         {((su.allergies?.length ?? 0) > 0 || (su.medicalConditions?.length ?? 0) > 0) && (
@@ -215,6 +325,9 @@ export function ServiceUserProfilePage() {
 
       {/* Tabs */}
       <div className="flex gap-2">
+        <TabButton active={tab === 'caredoc'} onClick={() => setTab('caredoc')} icon={<ClipboardCheck className="w-4 h-4" />}>
+          Care Documentation
+        </TabButton>
         <TabButton active={tab === 'careplan'} onClick={() => setTab('careplan')} icon={<ClipboardList className="w-4 h-4" />}>
           Care Plan
         </TabButton>
@@ -222,6 +335,112 @@ export function ServiceUserProfilePage() {
           Visit Notes {notes?.total ? `(${notes.total})` : ''}
         </TabButton>
       </div>
+
+      {tab === 'caredoc' && (
+        <div className="card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="section-header flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-primary-500" />
+              Hourly Care Documentation
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+                onClick={() => {
+                  const d = new Date(docDate); d.setDate(d.getDate() - 1);
+                  setDocDate(d.toISOString().split('T')[0]);
+                }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                {formatDisplayDate(docDate)}
+              </span>
+              <button
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
+                onClick={() => {
+                  const d = new Date(docDate); d.setDate(d.getDate() + 1);
+                  setDocDate(d.toISOString().split('T')[0]);
+                }}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {!careDoc || careDoc.allocatedHours === 0 ? (
+            <p className="text-center py-8 text-slate-400 text-sm">
+              No care hours allocated — set them in this person's edit form and the
+              carer app will require hourly documentation.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-4 mb-4 text-sm">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  {careDoc.slots.filter((s) => s.entry).length}/{careDoc.allocatedHours} hours documented
+                </span>
+                <span className="text-green-600">
+                  {careDoc.slots.filter((s) => s.entry?.execution === 'executed').length} executed
+                </span>
+                <span className="text-amber-600">
+                  {careDoc.slots.filter((s) => s.entry?.execution === 'partially_executed').length} partial
+                </span>
+                <span className="text-red-600">
+                  {careDoc.slots.filter((s) => s.entry?.execution === 'not_executed').length} not executed
+                  {' · '}
+                  {careDoc.slots.filter((s) => !s.entry && slotTone(s.slotAt, false).label === 'Missed').length} missed
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50">
+                    <tr>
+                      {['Hour', 'Status', 'Care Provided', 'Documentation', 'Carer', 'Saved'].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-100">
+                    {careDoc.slots.map((slot) => {
+                      const tone = slotTone(slot.slotAt, !!slot.entry);
+                      const exec = slot.entry ? EXECUTION_STYLE[slot.entry.execution] : null;
+                      return (
+                        <tr key={slot.slotAt}>
+                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                            {new Date(slot.slotAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className={`px-4 py-3 font-semibold whitespace-nowrap ${tone.cls}`}>{tone.label}</td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {exec ? (
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${exec.cls}`}>
+                                {exec.label} · {REASON_LABELS[slot.entry!.reason] ?? slot.entry!.reason}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 max-w-[320px]">
+                            {slot.entry?.documentation ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                            {slot.entry?.careWorkerName ?? '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                            {slot.entry
+                              ? new Date(slot.entry.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {tab === 'careplan' && (
         <div className="space-y-4">
@@ -406,6 +625,17 @@ export function ServiceUserProfilePage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+        {icon} {title}
+      </p>
+      <div className="text-sm text-slate-600 dark:text-slate-300 space-y-0.5">{children}</div>
     </div>
   );
 }

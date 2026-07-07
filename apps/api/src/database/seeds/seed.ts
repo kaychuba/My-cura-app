@@ -165,6 +165,42 @@ async function main() {
     lon: -2.2189,
   });
 
+  // ── Full profiles (condition, contacts, hospital, pharmacy) ───────────────
+  if (!su1.conditionSummary) {
+    Object.assign(su1, {
+      gender: 'female',
+      conditionSummary:
+        'Early-stage dementia with reduced mobility following a hip replacement. ' +
+        'Needs support with personal care, meals and medication through the day.',
+      careCommencedOn: '2026-03-02',
+      contactDetails: { phone: '0161 496 0102', email: 'margaret.hughes@example.com' },
+      hospitalContact: { name: 'Wythenshawe Hospital', ward: 'Ward F4 (Geriatric)', phone: '0161 998 7070' },
+      pharmacyContact: { name: 'Well Pharmacy Didsbury', phone: '0161 445 2210', address: '742 Wilmslow Road, M20 2DR' },
+      emergencyContacts: [
+        { name: 'David Hughes', relationship: 'Son', phone: '07700 900123', isPrimaryContact: true, hasPortalAccess: false },
+      ],
+    });
+    await serviceUsers.save(su1);
+    console.log('Enriched profile for', su1.firstName);
+  }
+  if (!su2.conditionSummary) {
+    Object.assign(su2, {
+      gender: 'male',
+      conditionSummary:
+        'Advanced COPD and severe arthritis. Oxygen-dependent; needs help with ' +
+        'transfers, breathing exercises and controlled pain medication.',
+      careCommencedOn: '2025-11-17',
+      contactDetails: { phone: '0161 496 0177' },
+      hospitalContact: { name: 'Manchester Royal Infirmary', ward: 'Respiratory Unit', phone: '0161 276 1234' },
+      pharmacyContact: { name: 'Boots Fallowfield', phone: '0161 224 3391' },
+      emergencyContacts: [
+        { name: 'Susan Bennett', relationship: 'Daughter', phone: '07700 900456', isPrimaryContact: true, hasPortalAccess: false },
+      ],
+    });
+    await serviceUsers.save(su2);
+    console.log('Enriched profile for', su2.firstName);
+  }
+
   // ── Allocated daily care hours (drives hourly care documentation) ─────────
   const allocations: Array<[ServiceUserEntity, number, string]> = [
     [su1, 10, '08:00'],

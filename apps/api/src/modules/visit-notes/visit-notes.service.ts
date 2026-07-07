@@ -11,6 +11,7 @@ import { VisitNoteEntity } from './entities/visit-note.entity';
 import { CareDocEntryEntity, CareExecution } from './entities/care-doc-entry.entity';
 import { ShiftEntity } from '../scheduling/entities/shift.entity';
 import { ServiceUserEntity } from '../service-users/entities/service-user.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 
 /** Allowed reasons per execution outcome — mirrored by the carer app. */
@@ -60,6 +61,8 @@ export class VisitNotesService {
     private careDocRepo: Repository<CareDocEntryEntity>,
     @InjectRepository(ServiceUserEntity)
     private serviceUserRepo: Repository<ServiceUserEntity>,
+    @InjectRepository(UserEntity)
+    private userRepo: Repository<UserEntity>,
     private notifications: NotificationsService,
   ) {}
 
@@ -95,15 +98,30 @@ export class VisitNotesService {
       .andWhere('e.slot_at >= :dayStart AND e.slot_at < :dayEnd', { dayStart, dayEnd })
       .getMany();
 
+    // Resolve carer names so managers can see who documented each hour
+    const workerIds = [...new Set(dayEntries.map((e) => e.careWorkerId))];
+    const workers = workerIds.length
+      ? await this.userRepo.find({
+          where: { tenantId, id: In(workerIds) },
+          select: ['id', 'firstName', 'lastName'],
+        })
+      : [];
+    const workerById = new Map(workers.map((w) => [w.id, `${w.firstName} ${w.lastName}`]));
+
     const byTime = new Map(dayEntries.map((e) => [new Date(e.slotAt).getTime(), e]));
     return {
       serviceUser: { id: su.id, firstName: su.firstName, lastName: su.lastName },
       allocatedHours: su.careHoursPerDay ?? 0,
       careDayStart: su.careDayStart ?? '08:00',
-      slots: slots.map((slotAt) => ({
-        slotAt: slotAt.toISOString(),
-        entry: byTime.get(slotAt.getTime()) ?? null,
-      })),
+      slots: slots.map((slotAt) => {
+        const entry = byTime.get(slotAt.getTime()) ?? null;
+        return {
+          slotAt: slotAt.toISOString(),
+          entry: entry
+            ? { ...entry, careWorkerName: workerById.get(entry.careWorkerId) ?? 'Unknown' }
+            : null,
+        };
+      }),
     };
   }
 

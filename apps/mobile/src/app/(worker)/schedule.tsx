@@ -268,20 +268,33 @@ function ShiftDetailModal({ shift, onClose }: { shift: CalendarShift | null; onC
           </DetailRow>
 
           {!!su && (
-            <TouchableOpacity
-              style={styles.carePlanButton}
-              activeOpacity={0.85}
-              onPress={() => {
-                onClose();
-                router.push({
-                  pathname: '/(worker)/care-plan',
-                  params: { serviceUserId: su.id, suName: `${su.firstName} ${su.lastName}` },
-                });
-              }}
-            >
-              <Feather name="clipboard" size={16} color={colors.primary} />
-              <Text style={styles.carePlanButtonText}>View Care Plan</Text>
-            </TouchableOpacity>
+            <View style={styles.linkRow}>
+              <TouchableOpacity
+                style={[styles.carePlanButton, { flex: 1 }]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  onClose();
+                  router.push({ pathname: '/(worker)/su-profile', params: { serviceUserId: su.id } });
+                }}
+              >
+                <Feather name="user" size={16} color={colors.primary} />
+                <Text style={styles.carePlanButtonText}>Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.carePlanButton, { flex: 1 }]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  onClose();
+                  router.push({
+                    pathname: '/(worker)/care-plan',
+                    params: { serviceUserId: su.id, suName: `${su.firstName} ${su.lastName}` },
+                  });
+                }}
+              >
+                <Feather name="clipboard" size={16} color={colors.primary} />
+                <Text style={styles.carePlanButtonText}>Care Plan</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {!!addr && (
@@ -394,10 +407,10 @@ const styles = StyleSheet.create({
   detailLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
   detailValue: { fontSize: 14, color: colors.textPrimary, marginTop: 2, lineHeight: 20 },
 
+  linkRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 },
   carePlanButton: {
     flexDirection: 'row', gap: 8, backgroundColor: colors.primaryTint,
     borderRadius: 12, paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
-    marginTop: 4, marginBottom: 8,
   },
   carePlanButtonText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   mapsButton: {

@@ -15,6 +15,26 @@ export class ServiceUserEntity extends BaseEntity {
   @Column({ name: 'date_of_birth', type: 'date' })
   dateOfBirth: string;
 
+  @Column({ nullable: true })
+  gender?: 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
+
+  /** Why this person needs care, in plain language — shown to carers. */
+  @Column({ name: 'condition_summary', type: 'text', nullable: true })
+  conditionSummary?: string;
+
+  /** Profile photo URL (uploads arrive with the storage module / AWS). */
+  @Column({ name: 'photo_url', nullable: true })
+  photoUrl?: string;
+
+  @Column({ name: 'care_commenced_on', type: 'date', nullable: true })
+  careCommencedOn?: string;
+
+  @Column({ name: 'hospital_contact', type: 'jsonb', nullable: true })
+  hospitalContact?: { name: string; phone?: string; ward?: string };
+
+  @Column({ name: 'pharmacy_contact', type: 'jsonb', nullable: true })
+  pharmacyContact?: { name: string; phone?: string; address?: string };
+
   @Column({ type: 'jsonb' })
   address: {
     line1: string;

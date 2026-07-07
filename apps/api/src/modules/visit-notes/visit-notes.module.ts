@@ -6,11 +6,14 @@ import { VisitNoteEntity } from './entities/visit-note.entity';
 import { CareDocEntryEntity } from './entities/care-doc-entry.entity';
 import { ShiftEntity } from '../scheduling/entities/shift.entity';
 import { ServiceUserEntity } from '../service-users/entities/service-user.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([VisitNoteEntity, CareDocEntryEntity, ShiftEntity, ServiceUserEntity]),
+    TypeOrmModule.forFeature([
+      VisitNoteEntity, CareDocEntryEntity, ShiftEntity, ServiceUserEntity, UserEntity,
+    ]),
     NotificationsModule,
   ],
   controllers: [VisitNotesController],

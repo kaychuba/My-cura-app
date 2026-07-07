@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { apiClient } from '../../services/api.client';
 import { ServiceUserPicker, ServiceUserOption } from '../../components/ServiceUserPicker';
@@ -149,9 +150,19 @@ export default function CareNotesScreen() {
       ) : sheet ? (
         <>
           <View style={styles.headerCard}>
-            <Text style={styles.headerTitle}>
-              Today's Care Documentation
-            </Text>
+            <View style={styles.headerTopRow}>
+              <Text style={styles.headerTitle}>
+                Today's Care Documentation
+              </Text>
+              <TouchableOpacity
+                hitSlop={10}
+                onPress={() =>
+                  router.push({ pathname: '/(worker)/su-profile', params: { serviceUserId: sheet.serviceUser.id } })
+                }
+              >
+                <Feather name="info" size={19} color="rgba(255,255,255,0.9)" />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.headerSub}>
               {sheet.serviceUser.firstName} {sheet.serviceUser.lastName} ·{' '}
               {sheet.allocatedHours} hours allocated from {sheet.careDayStart} ·{' '}
@@ -389,6 +400,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, borderRadius: 14, padding: 16,
     marginTop: 16, marginBottom: 12,
   },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4, lineHeight: 17 },
   legendRow: { flexDirection: 'row', gap: 14, marginTop: 12 },

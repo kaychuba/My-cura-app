@@ -28,6 +28,8 @@ test.describe('service users', () => {
     await page.goto('/service-users');
     await page.getByText('Harold Bennett').click();
 
+    // The profile opens on Care Documentation oversight; switch tab
+    await page.getByRole('button', { name: 'Care Plan', exact: true }).click();
     await page.getByRole('button', { name: /new draft version/i }).click();
     await page.getByPlaceholder(/hospital discharge/i).fill('Post-fall support plan');
     await page.locator('textarea').nth(1).fill('Assist with washing each morning; encourage independence.');

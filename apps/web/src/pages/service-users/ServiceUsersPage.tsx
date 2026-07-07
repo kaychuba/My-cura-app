@@ -28,6 +28,17 @@ export interface ServiceUser {
   communicationNeeds?: string;
   careHoursPerDay?: number;
   careDayStart?: string;
+  gender?: 'female' | 'male' | 'non_binary' | 'prefer_not_to_say';
+  conditionSummary?: string;
+  photoUrl?: string;
+  careCommencedOn?: string;
+  contactDetails?: { phone?: string; email?: string };
+  hospitalContact?: { name: string; phone?: string; ward?: string };
+  pharmacyContact?: { name: string; phone?: string; address?: string };
+  emergencyContacts?: Array<{
+    name: string; relationship: string; phone: string;
+    isPrimaryContact?: boolean; hasPortalAccess?: boolean;
+  }>;
 }
 
 const CARE_LEVEL_COLOR: Record<string, 'green' | 'amber' | 'red' | 'purple'> = {
@@ -55,6 +66,21 @@ interface SUForm {
   communicationNeeds: string;
   careHoursPerDay: string;
   careDayStart: string;
+  gender: '' | NonNullable<ServiceUser['gender']>;
+  conditionSummary: string;
+  photoUrl: string;
+  careCommencedOn: string;
+  phone: string;
+  email: string;
+  ecName: string;
+  ecRelationship: string;
+  ecPhone: string;
+  hospitalName: string;
+  hospitalWard: string;
+  hospitalPhone: string;
+  pharmacyName: string;
+  pharmacyPhone: string;
+  pharmacyAddress: string;
 }
 
 const emptyForm: SUForm = {
@@ -63,6 +89,11 @@ const emptyForm: SUForm = {
   careLevel: '', fundingSource: '',
   allergies: '', medicalConditions: '', mobilityNeeds: '', communicationNeeds: '',
   careHoursPerDay: '', careDayStart: '08:00',
+  gender: '', conditionSummary: '', photoUrl: '', careCommencedOn: '',
+  phone: '', email: '',
+  ecName: '', ecRelationship: '', ecPhone: '',
+  hospitalName: '', hospitalWard: '', hospitalPhone: '',
+  pharmacyName: '', pharmacyPhone: '', pharmacyAddress: '',
 };
 
 export function age(dob: string): number {
@@ -141,6 +172,21 @@ export function ServiceUsersPage() {
       communicationNeeds: su.communicationNeeds ?? '',
       careHoursPerDay: su.careHoursPerDay != null ? String(su.careHoursPerDay) : '',
       careDayStart: su.careDayStart ?? '08:00',
+      gender: su.gender ?? '',
+      conditionSummary: su.conditionSummary ?? '',
+      photoUrl: su.photoUrl ?? '',
+      careCommencedOn: su.careCommencedOn?.split('T')[0] ?? '',
+      phone: su.contactDetails?.phone ?? '',
+      email: su.contactDetails?.email ?? '',
+      ecName: su.emergencyContacts?.[0]?.name ?? '',
+      ecRelationship: su.emergencyContacts?.[0]?.relationship ?? '',
+      ecPhone: su.emergencyContacts?.[0]?.phone ?? '',
+      hospitalName: su.hospitalContact?.name ?? '',
+      hospitalWard: su.hospitalContact?.ward ?? '',
+      hospitalPhone: su.hospitalContact?.phone ?? '',
+      pharmacyName: su.pharmacyContact?.name ?? '',
+      pharmacyPhone: su.pharmacyContact?.phone ?? '',
+      pharmacyAddress: su.pharmacyContact?.address ?? '',
     });
     setModalOpen(true);
   };
@@ -177,6 +223,37 @@ export function ServiceUsersPage() {
         communicationNeeds: form.communicationNeeds.trim() || undefined,
         careHoursPerDay: form.careHoursPerDay ? Number(form.careHoursPerDay) : undefined,
         careDayStart: form.careHoursPerDay ? form.careDayStart : undefined,
+        gender: form.gender || undefined,
+        conditionSummary: form.conditionSummary.trim() || undefined,
+        photoUrl: form.photoUrl.trim() || undefined,
+        careCommencedOn: form.careCommencedOn || undefined,
+        contactDetails:
+          form.phone.trim() || form.email.trim()
+            ? { phone: form.phone.trim() || undefined, email: form.email.trim() || undefined }
+            : undefined,
+        emergencyContacts: form.ecName.trim()
+          ? [{
+              name: form.ecName.trim(),
+              relationship: form.ecRelationship.trim() || 'Next of kin',
+              phone: form.ecPhone.trim(),
+              isPrimaryContact: true,
+              hasPortalAccess: false,
+            }]
+          : undefined,
+        hospitalContact: form.hospitalName.trim()
+          ? {
+              name: form.hospitalName.trim(),
+              ward: form.hospitalWard.trim() || undefined,
+              phone: form.hospitalPhone.trim() || undefined,
+            }
+          : undefined,
+        pharmacyContact: form.pharmacyName.trim()
+          ? {
+              name: form.pharmacyName.trim(),
+              phone: form.pharmacyPhone.trim() || undefined,
+              address: form.pharmacyAddress.trim() || undefined,
+            }
+          : undefined,
       },
     });
   };
@@ -316,15 +393,35 @@ export function ServiceUsersPage() {
         }
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Section title="Personal" />
           <F label="First name *"><input className="input w-full" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} /></F>
           <F label="Last name *"><input className="input w-full" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} /></F>
           <F label="Date of birth *"><input type="date" className="input w-full" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></F>
+          <F label="Gender">
+            <select className="input w-full" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as SUForm['gender'] })}>
+              <option value="">Not stated</option>
+              <option value="female">Female</option>
+              <option value="male">Male</option>
+              <option value="non_binary">Non-binary</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
+            </select>
+          </F>
+          <F label="Profile photo URL"><input className="input w-full" placeholder="https://… (uploads arrive with cloud storage)" value={form.photoUrl} onChange={(e) => setForm({ ...form, photoUrl: e.target.value })} /></F>
+          <F label="Care commenced on"><input type="date" className="input w-full" value={form.careCommencedOn} onChange={(e) => setForm({ ...form, careCommencedOn: e.target.value })} /></F>
+          <div className="sm:col-span-2">
+            <F label="Condition — why does this person need care?">
+              <textarea className="input w-full min-h-[70px]" placeholder="e.g. Early-stage dementia with reduced mobility…" value={form.conditionSummary} onChange={(e) => setForm({ ...form, conditionSummary: e.target.value })} />
+            </F>
+          </div>
+
+          <Section title="Care" />
           <F label="Care level">
             <select className="input w-full capitalize" value={form.careLevel ?? ''} onChange={(e) => setForm({ ...form, careLevel: e.target.value as SUForm['careLevel'] })}>
               <option value="">Not set</option>
               {['low', 'medium', 'high', 'critical'].map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </F>
+          <Section title="Address & Contact" />
           <F label="Address line 1 *"><input className="input w-full" value={form.line1} onChange={(e) => setForm({ ...form, line1: e.target.value })} /></F>
           <F label="Address line 2"><input className="input w-full" value={form.line2} onChange={(e) => setForm({ ...form, line2: e.target.value })} /></F>
           <F label="City *"><input className="input w-full" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></F>
@@ -361,8 +458,35 @@ export function ServiceUsersPage() {
               onChange={(e) => setForm({ ...form, careDayStart: e.target.value })}
             />
           </F>
+          <F label="Phone"><input className="input w-full" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></F>
+          <F label="Email"><input className="input w-full" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></F>
+
+          <Section title="Emergency Contact" />
+          <F label="Name"><input className="input w-full" value={form.ecName} onChange={(e) => setForm({ ...form, ecName: e.target.value })} /></F>
+          <F label="Relationship"><input className="input w-full" placeholder="e.g. Son, Daughter" value={form.ecRelationship} onChange={(e) => setForm({ ...form, ecRelationship: e.target.value })} /></F>
+          <F label="Phone"><input className="input w-full" value={form.ecPhone} onChange={(e) => setForm({ ...form, ecPhone: e.target.value })} /></F>
+
+          <Section title="Registered Hospital" />
+          <F label="Hospital name"><input className="input w-full" value={form.hospitalName} onChange={(e) => setForm({ ...form, hospitalName: e.target.value })} /></F>
+          <F label="Ward / department"><input className="input w-full" value={form.hospitalWard} onChange={(e) => setForm({ ...form, hospitalWard: e.target.value })} /></F>
+          <F label="Hospital phone"><input className="input w-full" value={form.hospitalPhone} onChange={(e) => setForm({ ...form, hospitalPhone: e.target.value })} /></F>
+
+          <Section title="Pharmacy" />
+          <F label="Pharmacy name"><input className="input w-full" value={form.pharmacyName} onChange={(e) => setForm({ ...form, pharmacyName: e.target.value })} /></F>
+          <F label="Pharmacy phone"><input className="input w-full" value={form.pharmacyPhone} onChange={(e) => setForm({ ...form, pharmacyPhone: e.target.value })} /></F>
+          <div className="sm:col-span-2">
+            <F label="Pharmacy address"><input className="input w-full" value={form.pharmacyAddress} onChange={(e) => setForm({ ...form, pharmacyAddress: e.target.value })} /></F>
+          </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function Section({ title }: { title: string }) {
+  return (
+    <div className="sm:col-span-2 border-b border-slate-200 dark:border-slate-700 pb-1 mt-2">
+      <span className="text-sm font-bold text-primary-600">{title}</span>
     </div>
   );
 }

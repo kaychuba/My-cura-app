@@ -13,6 +13,12 @@ export interface CreateServiceUserDto {
   careLevel?: ServiceUserEntity['careLevel'];
   careHoursPerDay?: number;
   careDayStart?: string;
+  gender?: ServiceUserEntity['gender'];
+  conditionSummary?: string;
+  photoUrl?: string;
+  careCommencedOn?: string;
+  hospitalContact?: ServiceUserEntity['hospitalContact'];
+  pharmacyContact?: ServiceUserEntity['pharmacyContact'];
   gpDetails?: Record<string, unknown>;
   allergies?: string[];
   medicalConditions?: string[];
