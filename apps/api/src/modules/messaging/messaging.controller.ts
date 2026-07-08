@@ -16,6 +16,12 @@ import { AuthUser } from '@my-cura/shared-types';
 export class MessagingController {
   constructor(private readonly messagingService: MessagingService) {}
 
+  @Get('contacts')
+  @ApiOperation({ summary: 'People in your agency you can message' })
+  contacts(@CurrentTenant() tenantId: string, @CurrentUser() user: AuthUser) {
+    return this.messagingService.contacts(tenantId, user.id);
+  }
+
   @Get('conversations')
   @ApiOperation({ summary: 'Your conversations, most recent first' })
   myConversations(@CurrentTenant() tenantId: string, @CurrentUser() user: AuthUser) {

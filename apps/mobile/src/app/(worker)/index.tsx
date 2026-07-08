@@ -36,7 +36,7 @@ export default function WorkerDashboard() {
 
   const load = async () => {
     try {
-      const { data: result } = await apiClient.get<DashboardData>('/workers/me/dashboard');
+      const { data: result } = await apiClient.get<DashboardData>('/care-workers/me/dashboard');
       setData(result);
     } catch { /* fail silently — show placeholder */ }
     try {

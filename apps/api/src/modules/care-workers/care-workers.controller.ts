@@ -20,6 +20,12 @@ import { AuthUser, UserRole } from '@my-cura/shared-types';
 export class CareWorkersController {
   constructor(private readonly careWorkersService: CareWorkersService) {}
 
+  @Get('me/dashboard')
+  @ApiOperation({ summary: "The worker app's home screen data (today's shifts, week stats, leave)" })
+  dashboard(@CurrentTenant() tenantId: string, @CurrentUser() user: AuthUser) {
+    return this.careWorkersService.dashboard(tenantId, user.id);
+  }
+
   @Get('me')
   @ApiOperation({ summary: 'Get my own care worker profile (pay fields stripped)' })
   async getMe(@CurrentTenant() tenantId: string, @CurrentUser() user: AuthUser) {

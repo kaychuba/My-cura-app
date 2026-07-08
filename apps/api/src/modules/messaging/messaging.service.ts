@@ -22,6 +22,18 @@ export class MessagingService {
     private userRepo: Repository<UserEntity>,
   ) {}
 
+  /** Colleagues you can message: every active user in the agency but you. */
+  async contacts(tenantId: string, userId: string) {
+    const users = await this.userRepo.find({
+      where: { tenantId },
+      select: ['id', 'firstName', 'lastName', 'role', 'status'],
+      order: { firstName: 'ASC' },
+    });
+    return users
+      .filter((u) => u.id !== userId && u.status === 'active')
+      .map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`, role: u.role }));
+  }
+
   async myConversations(tenantId: string, userId: string) {
     const conversations = await this.conversationRepo
       .createQueryBuilder('c')
