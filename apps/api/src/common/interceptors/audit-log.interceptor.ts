@@ -4,7 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable, tap } from 'rxjs';
+import { Observable, mergeMap } from 'rxjs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Request } from 'express';
@@ -25,9 +25,11 @@ export class AuditLogInterceptor implements NestInterceptor {
     const { user, method, url, ip, headers } = request;
 
     return next.handle().pipe(
-      tap(async () => {
+      // mergeMap (not fire-and-forget tap): the insert must finish while the
+      // request's RLS transaction is still open, or it would be rolled away.
+      mergeMap(async (data) => {
         try {
-          await this.dataSource.query(
+          await this.dataSource.manager.query(
             `INSERT INTO audit_logs
               (id, tenant_id, user_id, action, resource_type, resource_id, ip_address, user_agent, created_at)
              VALUES
@@ -45,6 +47,7 @@ export class AuditLogInterceptor implements NestInterceptor {
         } catch {
           // Audit log failure must never break the main request
         }
+        return data;
       }),
     );
   }

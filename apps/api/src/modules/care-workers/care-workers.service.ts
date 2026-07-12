@@ -55,7 +55,7 @@ export class CareWorkersService {
     const todayRows: Array<{
       id: string; scheduled_start: string; scheduled_end: string; status: string;
       first_name?: string; last_name?: string; address?: { line1?: string; postcode?: string };
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT s.id, s.scheduled_start, s.scheduled_end, s.status,
               su.first_name, su.last_name, su.address
          FROM shifts s
@@ -66,7 +66,7 @@ export class CareWorkersService {
       [tenantId, userId],
     );
 
-    const [week] = await this.dataSource.query(
+    const [week] = await this.dataSource.manager.query(
       `SELECT COUNT(*) AS shifts,
               COALESCE(SUM(EXTRACT(EPOCH FROM (scheduled_end - scheduled_start)) / 3600)
                 FILTER (WHERE status = 'completed'), 0) AS hours
@@ -77,7 +77,7 @@ export class CareWorkersService {
       [tenantId, userId],
     );
 
-    const [expenses] = await this.dataSource.query(
+    const [expenses] = await this.dataSource.manager.query(
       `SELECT COUNT(*) AS pending FROM expenses
         WHERE tenant_id = $1 AND care_worker_id = $2 AND status = 'submitted'`,
       [tenantId, userId],

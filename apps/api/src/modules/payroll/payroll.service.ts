@@ -127,7 +127,7 @@ export class PayrollService {
 
   private async processPayrollAsync(tenantId: string, period: PayrollPeriodEntity): Promise<void> {
     // Fetch all active care workers for this tenant
-    const workers = await this.dataSource.query(
+    const workers = await this.dataSource.manager.query(
       `SELECT cw.*, u.email, u.first_name, u.last_name
        FROM care_workers cw
        JOIN users u ON u.id = cw.user_id
@@ -138,7 +138,7 @@ export class PayrollService {
     );
 
     // Fetch timesheet data for the period
-    const timesheets = await this.dataSource.query(
+    const timesheets = await this.dataSource.manager.query(
       `SELECT
          ce.care_worker_id,
          s.shift_type,

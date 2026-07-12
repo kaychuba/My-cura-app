@@ -15,7 +15,7 @@ export class TokenService {
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
-    @InjectRepository(UserEntity) private userRepo: Repository<UserEntity>,
+    @InjectRepository(UserEntity, 'auth') private userRepo: Repository<UserEntity>,
   ) {
     this.refreshSecret = this.configService.get<string>('app.jwtRefreshSecret')!;
     this.refreshExpiresIn = this.configService.get<string>('app.jwtRefreshExpiresIn') ?? '30d';

@@ -22,7 +22,7 @@ const BCRYPT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(UserEntity) private userRepo: Repository<UserEntity>,
+    @InjectRepository(UserEntity, 'auth') private userRepo: Repository<UserEntity>,
     private tokenService: TokenService,
     private twoFactorService: TwoFactorService,
   ) {}

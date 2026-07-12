@@ -2,9 +2,14 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { initializeTransactionalContext, StorageDriver } from 'typeorm-transactional';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Must run before any DataSource exists: gives every request its own
+  // async-local transaction context for row-level-security enforcement.
+  initializeTransactionalContext({ storageDriver: StorageDriver.ASYNC_LOCAL_STORAGE });
+
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({

@@ -37,7 +37,10 @@ import { WhistleblowingModule } from './modules/whistleblowing/whistleblowing.mo
 import { BodyMapsModule } from './modules/body-maps/body-maps.module';
 import { PoliciesModule } from './modules/policies/policies.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
-import { getDatabaseConfig } from './config/database.config';
+import { getDatabaseConfig, getAuthDatabaseConfig } from './config/database.config';
+import { DataSource } from 'typeorm';
+import { addTransactionalDataSource } from 'typeorm-transactional';
+import { TenantContextModule } from './common/tenant-context.module';
 
 @Module({
   imports: [
@@ -49,7 +52,18 @@ import { getDatabaseConfig } from './config/database.config';
 
     TypeOrmModule.forRootAsync({
       useFactory: getDatabaseConfig,
+      // Register with typeorm-transactional so repositories resolve the
+      // request's transaction (where set_tenant_id has been applied).
+      dataSourceFactory: async (options) =>
+        addTransactionalDataSource(new DataSource(options!)),
     }),
+    // Privileged connection for the pre-tenant surface (login/token lookups).
+    TypeOrmModule.forRootAsync({
+      name: 'auth',
+      useFactory: getAuthDatabaseConfig,
+    }),
+    // First so its interceptor wraps all others (audit runs inside it)
+    TenantContextModule,
 
     ThrottlerModule.forRoot([
       {

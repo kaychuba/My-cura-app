@@ -11,7 +11,7 @@ export interface UpdateTenantDto {
 @Injectable()
 export class TenantsService {
   constructor(
-    @InjectRepository(TenantEntity)
+    @InjectRepository(TenantEntity, 'auth')
     private tenantRepo: Repository<TenantEntity>,
   ) {}
 

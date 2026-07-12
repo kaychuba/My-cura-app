@@ -121,7 +121,7 @@ export class ReportsService {
       ni_employee: number;
       pension_employee: number;
       net_pay: number;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(u.first_name, ' ', u.last_name) AS worker_name,
          COALESCE(cw.employee_number, '-')       AS employee_number,
@@ -222,7 +222,7 @@ export class ReportsService {
       hours_actual: number;
       status: string;
       service_user_name: string;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(u.first_name, ' ', u.last_name)      AS worker_name,
          s.scheduled_start::date::text               AS shift_date,
@@ -308,7 +308,7 @@ export class ReportsService {
       refused: number;
       omitted: number;
       compliance_pct: number;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(su.first_name, ' ', su.last_name) AS service_user_name,
          m.name                                   AS medication_name,
@@ -398,7 +398,7 @@ export class ReportsService {
       actions_taken: string | null;
       resolved_at: string | null;
       cqc_reportable: boolean;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          to_char(i.reported_at, 'YYYY-MM-DD HH24:MI') AS reported_at,
          i.incident_type,
@@ -478,7 +478,7 @@ export class ReportsService {
       total_shifts: number;
       completed_shifts: number;
       total_hours: number;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(su.first_name, ' ', su.last_name) AS service_user_name,
          s.shift_type,
@@ -538,7 +538,7 @@ export class ReportsService {
       expiry_date: string;
       days_remaining: number;
       verified: boolean;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(u.first_name, ' ', u.last_name) AS worker_name,
          u.email,
@@ -610,7 +610,7 @@ export class ReportsService {
       expiry_date: string | null;
       status: string;
       certificate_url: string | null;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          CONCAT(u.first_name, ' ', u.last_name) AS worker_name,
          u.email,

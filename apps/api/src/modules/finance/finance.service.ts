@@ -75,7 +75,7 @@ export class FinanceService {
       shift_type: string;
       hourly_rate: number;
       service_user_name: string;
-    }> = await this.dataSource.query(
+    }> = await this.dataSource.manager.query(
       `SELECT
          s.id,
          s.scheduled_start,
@@ -230,27 +230,27 @@ export class FinanceService {
     const today = now.toISOString().split('T')[0];
 
     const [revMTD, revYTD, outstanding, overdue, payrollCost] = await Promise.all([
-      this.dataSource.query(
+      this.dataSource.manager.query(
         `SELECT COALESCE(SUM(total),0) AS val FROM invoices
          WHERE tenant_id=$1 AND status='paid' AND paid_at::date>=$2 AND deleted_at IS NULL`,
         [tenantId, monthStart],
       ),
-      this.dataSource.query(
+      this.dataSource.manager.query(
         `SELECT COALESCE(SUM(total),0) AS val FROM invoices
          WHERE tenant_id=$1 AND status='paid' AND paid_at::date>=$2 AND deleted_at IS NULL`,
         [tenantId, yearStart],
       ),
-      this.dataSource.query(
+      this.dataSource.manager.query(
         `SELECT COALESCE(SUM(total),0) AS val, COUNT(*) AS cnt FROM invoices
          WHERE tenant_id=$1 AND status='sent' AND deleted_at IS NULL`,
         [tenantId],
       ),
-      this.dataSource.query(
+      this.dataSource.manager.query(
         `SELECT COALESCE(SUM(total),0) AS val, COUNT(*) AS cnt FROM invoices
          WHERE tenant_id=$1 AND status='sent' AND due_date < $2 AND deleted_at IS NULL`,
         [tenantId, today],
       ),
-      this.dataSource.query(
+      this.dataSource.manager.query(
         `SELECT COALESCE(SUM(total_gross),0) AS val FROM payroll_periods
          WHERE tenant_id=$1 AND period_start>=$2 AND deleted_at IS NULL`,
         [tenantId, monthStart],
@@ -284,7 +284,7 @@ export class FinanceService {
     months = 12,
   ): Promise<Array<{ month: string; revenue: number; payrollCost: number; margin: number }>> {
     const rows: Array<{ month: string; revenue: number; payroll_cost: number }> =
-      await this.dataSource.query(
+      await this.dataSource.manager.query(
         `WITH months AS (
            SELECT generate_series(
              date_trunc('month', NOW()) - ($2 - 1) * interval '1 month',

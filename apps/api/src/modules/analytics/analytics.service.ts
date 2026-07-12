@@ -12,7 +12,7 @@ export class AnalyticsService {
 
   async overview(tenantId: string) {
     const one = async (sql: string, params: unknown[] = []): Promise<Record<string, string>> =>
-      (await this.dataSource.query(sql, [tenantId, ...params]))[0] ?? {};
+      (await this.dataSource.manager.query(sql, [tenantId, ...params]))[0] ?? {};
 
     const people = await one(`
       SELECT

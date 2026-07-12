@@ -18,7 +18,10 @@ import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity]),
+    // Auth reads users before any tenant context exists (login by email,
+    // JWT validation), so it uses the privileged 'auth' connection that
+    // bypasses row-level security. Everything else stays RLS-locked.
+    TypeOrmModule.forFeature([UserEntity], 'auth'),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
