@@ -29,9 +29,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const refreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
 
     if (accessToken && refreshToken) {
-      set({ accessToken, isAuthenticated: true });
+      // Validate the stored session FIRST — never present an authenticated
+      // UI on the strength of a token the server may have revoked.
       const refreshed = await get().refreshAccessToken();
-      if (!refreshed) {
+      if (refreshed) {
+        set({ isAuthenticated: true });
+      } else {
         await get().logout();
       }
     }
