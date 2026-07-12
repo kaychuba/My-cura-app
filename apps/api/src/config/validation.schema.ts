@@ -8,31 +8,23 @@ export const validationSchema = Joi.object({
   DB_HOST: Joi.string().default('localhost'),
   DB_PORT: Joi.number().default(5432),
   DB_USERNAME: Joi.string().default('mycura'),
-  DB_PASSWORD: Joi.string().default('mycura'),
+  DB_PASSWORD: Joi.string().required(),
+  DB_APP_USERNAME: Joi.string().default('mycura_app'),
+  DB_APP_PASSWORD: Joi.string().required().invalid('mycura_app_password'),
+  DB_AUTH_USERNAME: Joi.string().default('mycura_auth'),
+  DB_AUTH_PASSWORD: Joi.string().required(),
   DB_NAME: Joi.string().default('mycura'),
   DB_SSL: Joi.boolean().default(false),
   DB_POOL_MAX: Joi.number().default(20),
 
   // JWT
-  JWT_SECRET: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required(),
-    otherwise: Joi.string().default('dev-jwt-secret-change-in-production'),
-  }),
-  JWT_REFRESH_SECRET: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required(),
-    otherwise: Joi.string().default('dev-refresh-secret-change-in-production'),
-  }),
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_REFRESH_SECRET: Joi.string().min(32).required(),
   JWT_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
 
   // Encryption
-  ENCRYPTION_KEY: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.string().length(64).required(),
-    otherwise: Joi.string().default('0'.repeat(64)),
-  }),
+  ENCRYPTION_KEY: Joi.string().length(64).required(),
 
   // Redis
   REDIS_HOST: Joi.string().default('localhost'),

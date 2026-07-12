@@ -9,9 +9,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - Extensions + set_tenant_id()/current_tenant_id() helpers (mirrors
  *   infrastructure/docker/init-db.sql for environments where that bootstrap
  *   never ran).
- * - mycura_app (RLS-constrained) and mycura_super (BYPASSRLS) login roles.
- *   Dev-only passwords; production must ALTER ROLE with secrets from AWS
- *   Secrets Manager.
+ * - mycura_app (RLS-constrained) login role. Passwords are never stored
+ *   in this repository — set them per environment (set-role-passwords.sh).
  * - Every table with a tenant_id column gets row-level security and a
  *   tenant_isolation policy, discovered dynamically so the file never needs a
  *   hard-coded table list.
@@ -56,10 +55,7 @@ export class EnableRowLevelSecurity1790000000000 implements MigrationInterface {
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'mycura_app') THEN
-          CREATE ROLE mycura_app LOGIN PASSWORD 'mycura_app_password';
-        END IF;
-        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'mycura_super') THEN
-          CREATE ROLE mycura_super LOGIN PASSWORD 'mycura_super_password' BYPASSRLS;
+          CREATE ROLE mycura_app LOGIN; -- password set per environment, never in the repo
         END IF;
       END
       $$;
@@ -70,9 +66,6 @@ export class EnableRowLevelSecurity1790000000000 implements MigrationInterface {
     await queryRunner.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO mycura_app`);
     await queryRunner.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO mycura_app`);
     await queryRunner.query(`ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO mycura_app`);
-    await queryRunner.query(`GRANT USAGE ON SCHEMA public TO mycura_super`);
-    await queryRunner.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO mycura_super`);
-    await queryRunner.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO mycura_super`);
 
     // Tenant isolation on every table that carries tenant_id. RLS is ENABLEd
     // (not FORCEd): the policy binds connections made as mycura_app

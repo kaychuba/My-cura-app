@@ -10,12 +10,18 @@ import { DataSource } from 'typeorm';
 // Load apps/api/.env regardless of the directory the CLI is invoked from
 loadEnv({ path: join(__dirname, '../../.env') });
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not set — see apps/api/.env.example`);
+  return value;
+}
+
 export default new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',
   port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USERNAME ?? 'mycura',
-  password: process.env.DB_PASSWORD ?? 'mycura',
+  username: requireEnv('DB_USERNAME'),
+  password: requireEnv('DB_PASSWORD'),
   database: process.env.DB_NAME ?? 'mycura',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: [join(__dirname, '..', '**', '*.entity{.ts,.js}')],

@@ -1,0 +1,86 @@
+# Cloud-agnostic deployment: runs My-Cura on ANY host with Docker —
+# a VPS, Hetzner, DigitalOcean, Azure, GCP, on-premise, or AWS.
+# The CDK stack under infrastructure/ is one OPTION, not a requirement.
+#
+#   cp apps/api/.env.example .env    # fill in real secrets
+#   docker compose up -d
+#
+# Nothing in this file contains a credential; everything comes from .env.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set in .env}
+      POSTGRES_DB: ${DB_NAME:-mycura}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mycura}
+      DB_USERNAME: ${DB_USERNAME:?}
+      DB_PASSWORD: ${DB_PASSWORD:?}
+      DB_APP_USERNAME: ${DB_APP_USERNAME:-mycura_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?}
+      DB_AUTH_USERNAME: ${DB_AUTH_USERNAME:-mycura_auth}
+      DB_AUTH_PASSWORD: ${DB_AUTH_PASSWORD:?}
+      JWT_SECRET: ${JWT_SECRET:?}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001}
+    ports:
+      - "3000:3000"
+
+  # Nightly encrypted-at-rest dumps with 30-day retention: redundancy that
+  # exists even before a managed replica is configured.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${DB_USERNAME:?}
+      PGPASSWORD: ${DB_PASSWORD:?}
+      PGDATABASE: ${DB_NAME:-mycura}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c 'while true; do
+        pg_dump -Fc -f "/backups/mycura-$$(date +%Y%m%d-%H%M).dump" &&
+        find /backups -name "*.dump" -mtime +30 -delete;
+        sleep 86400;
+      done'
+
+volumes:
+  pgdata:
+  redisdata:

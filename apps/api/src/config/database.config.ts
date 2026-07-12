@@ -1,11 +1,20 @@
 import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
+/** Fail fast with a clear message instead of silently using a default. */
+function must(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not set — copy apps/api/.env.example to .env and fill it in`);
+  }
+  return value;
+}
+
 export default registerAs('database', () => ({
   host: process.env.DB_HOST ?? 'localhost',
   port: parseInt(process.env.DB_PORT ?? '5432', 10),
-  username: process.env.DB_USERNAME ?? 'mycura',
-  password: process.env.DB_PASSWORD ?? 'mycura',
+  username: must('DB_USERNAME'),
+  password: must('DB_PASSWORD'),
   database: process.env.DB_NAME ?? 'mycura',
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 }));
@@ -22,7 +31,7 @@ export function getDatabaseConfig(): TypeOrmModuleOptions {
     host: process.env.DB_HOST ?? 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),
     username: process.env.DB_APP_USERNAME ?? 'mycura_app',
-    password: process.env.DB_APP_PASSWORD ?? 'mycura_app_password',
+    password: must('DB_APP_PASSWORD'),
     database: process.env.DB_NAME ?? 'mycura',
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
@@ -51,8 +60,8 @@ export function getAuthDatabaseConfig(): TypeOrmModuleOptions {
     type: 'postgres',
     host: process.env.DB_HOST ?? 'localhost',
     port: parseInt(process.env.DB_PORT ?? '5432', 10),
-    username: process.env.DB_SUPER_USERNAME ?? process.env.DB_USERNAME ?? 'mycura',
-    password: process.env.DB_SUPER_PASSWORD ?? process.env.DB_PASSWORD ?? 'mycura',
+    username: process.env.DB_AUTH_USERNAME ?? 'mycura_auth',
+    password: must('DB_AUTH_PASSWORD'),
     database: process.env.DB_NAME ?? 'mycura',
     ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],

@@ -60,3 +60,7 @@ test-results
 
 # Store credentials
 google-service-account.json
+
+# Expo local state (device registry, caches) — never commit
+.expo/
+apps/mobile/.expo/

@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'mycura_app') THEN
-    CREATE ROLE mycura_app LOGIN PASSWORD 'mycura_app_password';
+    CREATE ROLE mycura_app LOGIN; -- password set per environment
   END IF;
 END
 $$;
@@ -23,7 +23,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO mycura_app;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'mycura_super') THEN
-    CREATE ROLE mycura_super LOGIN PASSWORD 'mycura_super_password' BYPASSRLS;
+    -- (BYPASSRLS role removed: nothing may blanket-bypass row security)
   END IF;
 END
 $$;
