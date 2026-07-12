@@ -8,7 +8,7 @@ import { ClockInRequest, ClockInResponse, ClockEventType, ShiftStatus } from '@m
 import { haversineDistanceMetres } from '@my-cura/shared-utils';
 
 const CLOCK_IN_WINDOW_MINUTES = 30;
-const DEFAULT_GPS_RADIUS_METRES = 200;
+const DEFAULT_GPS_RADIUS_METRES = 3000; // hard limit: clock-ins beyond 3km are rejected
 const MAX_GPS_ACCURACY_METRES = 50;
 const DUPLICATE_WINDOW_MINUTES = 30;
 

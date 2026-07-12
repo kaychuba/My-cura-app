@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { apiClient } from '../../services/api.client';
+import { enqueue, isNetworkError, cacheSet, cacheGet } from '../../services/offline';
 import { useAuthStore } from '../../stores/auth.store';
 import { MARStatus } from '@my-cura/shared-types';
 import { ServiceUserPicker, ServiceUserOption } from '../../components/ServiceUserPicker';
@@ -91,8 +92,17 @@ export default function MARScreen() {
       );
       setMedications(data.medications);
       setRecords(data.records);
-    } catch {
-      Alert.alert('Error', 'Could not load the MAR chart');
+      cacheSet(`mar.${serviceUserId}`, data);
+    } catch (e) {
+      // No signal: open the last copy stored on this phone
+      const cached = await cacheGet<{ medications: Medication[]; records: MARRecord[] }>(`mar.${serviceUserId}`);
+      if (cached) {
+        setMedications(cached.medications);
+        setRecords(cached.records);
+        if (isNetworkError(e)) Alert.alert('Offline', 'Showing the last saved copy — recordings will sync when signal returns.');
+      } else {
+        Alert.alert('Error', 'Could not load the MAR chart');
+      }
     } finally {
       setLoading(false);
     }
@@ -297,6 +307,22 @@ export default function MARScreen() {
         defaultInitials={`${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase()}
         onClose={() => { setRecording(null); setPrnRecording(null); }}
         onSaved={() => { setRecording(null); setPrnRecording(null); load(); }}
+        onSavedOffline={(p) => {
+          // Reflect the offline recording immediately in the UI
+          if (recording) {
+            setRecords((prev) => prev.map((r) => r.id === recording.id
+              ? { ...r, status: p.status, administeredAt: p.timeCompleted, recordedAt: new Date().toISOString(), initials: p.initials.toUpperCase(), reasonNotGiven: p.reason }
+              : r));
+          } else if (prnRecording) {
+            setRecords((prev) => [...prev, {
+              id: `offline-${Date.now()}`, medicationId: prnRecording.id,
+              scheduledAt: p.timeCompleted, administeredAt: p.timeCompleted,
+              recordedAt: new Date().toISOString(), status: p.status,
+              initials: p.initials.toUpperCase(), reasonNotGiven: p.reason,
+            }]);
+          }
+          setRecording(null); setPrnRecording(null);
+        }}
       />
     </ScrollView>
   );
@@ -339,13 +365,14 @@ function TimeCompletedPicker({ value, onChange }: { value: Date; onChange: (d: D
   );
 }
 
-function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, onSaved }: {
+function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, onSaved, onSavedOffline }: {
   record: MARRecord | null;
   medication?: Medication;
   prn?: boolean;
   defaultInitials: string;
   onClose: () => void;
   onSaved: () => void;
+  onSavedOffline?: (payload: { status: MARStatus; timeCompleted: string; initials: string; reason?: string }) => void;
 }) {
   const [outcome, setOutcome] = useState<MARStatus | null>(null);
   const [timeCompleted, setTimeCompleted] = useState(() => roundTo5(new Date()));
@@ -391,14 +418,14 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
       return;
     }
     setSaving(true);
+    const payload = {
+      status: outcome,
+      timeCompleted: timeCompleted.toISOString(),
+      initials: initials.trim(),
+      reason: reason.trim() || undefined,
+      witnessInitials: needsWitness ? witnessInitials.trim() : undefined,
+    };
     try {
-      const payload = {
-        status: outcome,
-        timeCompleted: timeCompleted.toISOString(),
-        initials: initials.trim(),
-        reason: reason.trim() || undefined,
-        witnessInitials: needsWitness ? witnessInitials.trim() : undefined,
-      };
       if (prn && medication) {
         await apiClient.post(`/mar/prn/${medication.id}`, payload);
       } else if (record) {
@@ -407,6 +434,17 @@ function RecordDoseModal({ record, medication, prn, defaultInitials, onClose, on
       Alert.alert('Recorded', 'The dose has been recorded on the MAR chart.');
       onSaved();
     } catch (e: unknown) {
+      if (isNetworkError(e)) {
+        // No signal: keep the recording on the phone and sync later
+        if (prn && medication) {
+          await enqueue({ method: 'post', url: `/mar/prn/${medication.id}`, body: payload, label: `PRN ${medication.name}` });
+        } else if (record) {
+          await enqueue({ method: 'patch', url: `/mar/records/${record.id}/administer`, body: payload, label: 'MAR dose' });
+        }
+        Alert.alert('Saved offline', 'No signal — this recording is stored on the phone and will sync automatically.');
+        onSavedOffline?.(payload);
+        return;
+      }
       const err = e as { response?: { status?: number; data?: { message?: string } } };
       // PRN repeat within 30 min: let the carer confirm it was really given again
       if (prn && medication && err.response?.status === 409) {

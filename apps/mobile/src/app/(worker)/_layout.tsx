@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { QuickMenu } from '../../components/QuickMenu';
+import { initOfflineSync } from '../../services/offline';
 import { colors } from '../../theme';
 
 export default function WorkerLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Replay offline clock-ins / MAR records / care notes when signal returns
+  useEffect(() => initOfflineSync(), []);
 
   return (
     <>
@@ -50,6 +54,16 @@ export default function WorkerLayout() {
             tabBarIcon: ({ color, size }) => <Feather name="clock" color={color} size={size - 2} />,
             headerTitle: 'Clock In / Out',
             tabBarStyle: { display: 'none' },
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => router.replace('/(worker)')}
+                hitSlop={10}
+                style={{ paddingHorizontal: 14 }}
+                accessibilityLabel="Back to dashboard"
+              >
+                <Feather name="arrow-left" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            ),
           }}
         />
         <Tabs.Screen

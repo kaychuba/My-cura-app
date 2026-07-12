@@ -6,11 +6,12 @@ import {
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { apiClient } from '../../services/api.client';
+import { enqueue, isNetworkError } from '../../services/offline';
 import { ClockEventType, ShiftStatus } from '@my-cura/shared-types';
 import { isWithinRadius, haversineDistanceMetres } from '@my-cura/shared-utils';
 import { formatDisplayTime } from '@my-cura/shared-utils';
 
-const GPS_RADIUS_METRES = 200;
+const GPS_RADIUS_METRES = 3000; // hard limit: cannot clock in beyond 3km
 const ACCURACY_THRESHOLD = 50;
 
 interface ActiveShift {
@@ -129,20 +130,24 @@ export default function ClockInScreen() {
     if (!gpsCoords || !shift) return;
 
     setPhase('submitting');
+    const payload = {
+      shiftId: shift.id,
+      eventType,
+      latitude: gpsCoords.lat,
+      longitude: gpsCoords.lon,
+      accuracy: gpsCoords.accuracy,
+      timestamp: new Date().toISOString(),
+      deviceId: 'mobile',
+    };
     try {
-      await apiClient.post('/clock-in', {
-        shiftId: shift.id,
-        eventType,
-        latitude: gpsCoords.lat,
-        longitude: gpsCoords.lon,
-        accuracy: gpsCoords.accuracy,
-        timestamp: new Date().toISOString(),
-        deviceId: 'mobile',
-      });
+      await apiClient.post('/clock-in', payload);
 
       if (eventType === ClockEventType.CLOCK_IN) {
         setClockedIn(true);
-        setPhase('clocked_in');
+        setPhase('idle'); // back to idle so the Clock Out button appears
+        setGpsCoords(null);
+        setDistanceMetres(null);
+        Alert.alert('Clocked In', 'Visit started — the Clock Out button is now available below.');
       } else {
         setPhase('clocked_out');
         Alert.alert(
@@ -152,6 +157,27 @@ export default function ClockInScreen() {
         );
       }
     } catch (err: unknown) {
+      if (isNetworkError(err)) {
+        // No signal: keep the event on the phone with its true timestamp and
+        // sync automatically when the network returns.
+        await enqueue({
+          method: 'post',
+          url: '/clock-in',
+          body: payload,
+          label: eventType === ClockEventType.CLOCK_IN ? 'Clock in' : 'Clock out',
+        });
+        if (eventType === ClockEventType.CLOCK_IN) {
+          setClockedIn(true);
+          setPhase('idle');
+          Alert.alert('Saved offline', 'No signal right now — your clock-in is stored on this phone and will sync automatically.');
+        } else {
+          setPhase('clocked_out');
+          Alert.alert('Saved offline', 'No signal right now — your clock-out is stored on this phone and will sync automatically.', [
+            { text: 'Done', onPress: () => router.replace('/(worker)') },
+          ]);
+        }
+        return;
+      }
       const error = err as { response?: { data?: { message?: string } } };
       setPhase(clockedIn ? 'clocked_in' : 'idle');
       Alert.alert('Error', error?.response?.data?.message ?? 'Failed to record event. Please try again.');
@@ -265,15 +291,16 @@ export default function ClockInScreen() {
         <View style={styles.warningBox}>
           <Text style={styles.warningTitle}>⚠️ Location Warning</Text>
           <Text style={styles.warningText}>
-            You appear to be more than {GPS_RADIUS_METRES}m from the care address.
-            Your clock-in will still be recorded but flagged for manager review.
+            You are more than {GPS_RADIUS_METRES / 1000}km from the care address, so
+            clocking in is blocked. Move closer and try again — or ask your manager
+            to clock you in from the office.
           </Text>
         </View>
       )}
 
       {/* Action buttons */}
       <View style={styles.actions}>
-        {phase === 'idle' || phase === 'acquiring_gps' ? (
+        {phase === 'idle' || phase === 'acquiring_gps' || phase === 'clocked_in' ? (
           <>
             {!clockedIn && (
               <TouchableOpacity
@@ -302,7 +329,12 @@ export default function ClockInScreen() {
         {phase === 'confirming' && gpsCoords && (
           <View>
             <TouchableOpacity
-              style={[styles.actionButton, clockedIn ? styles.clockOutButton : styles.clockInButton]}
+              style={[
+                styles.actionButton,
+                clockedIn ? styles.clockOutButton : styles.clockInButton,
+                isOutOfRange && !clockedIn && styles.disabledButton,
+              ]}
+              disabled={isOutOfRange && !clockedIn}
               onPress={() => submitClockEvent(clockedIn ? ClockEventType.CLOCK_OUT : ClockEventType.CLOCK_IN)}
             >
               <Text style={styles.actionButtonText}>

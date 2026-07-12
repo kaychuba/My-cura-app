@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { apiClient } from '../../services/api.client';
+import { enqueue, isNetworkError, cacheSet, cacheGet } from '../../services/offline';
 import { ServiceUserPicker, ServiceUserOption } from '../../components/ServiceUserPicker';
 import { SwipeableSheet } from '../../components/SwipeableSheet';
 import { colors } from '../../theme';
@@ -105,8 +106,15 @@ export default function CareNotesScreen() {
         `/visit-notes/care-doc?serviceUserId=${pickedSU.id}`,
       );
       setSheet(data);
-    } catch {
-      Alert.alert('Error', 'Could not load the care documentation sheet');
+      cacheSet(`caredoc.${pickedSU.id}`, data);
+    } catch (e) {
+      const cached = await cacheGet<CareDocSheet>(`caredoc.${pickedSU.id}`);
+      if (cached) {
+        setSheet(cached);
+        if (isNetworkError(e)) Alert.alert('Offline', 'Showing the last saved copy — entries will sync when signal returns.');
+      } else {
+        Alert.alert('Error', 'Could not load the care documentation sheet');
+      }
     } finally {
       setLoading(false);
     }
@@ -237,17 +245,27 @@ export default function CareNotesScreen() {
         serviceUserId={pickedSU?.id}
         onClose={() => setDocumenting(null)}
         onSaved={() => { setDocumenting(null); load(); }}
+        onSavedOffline={(p) => {
+          setSheet((prev) => prev ? {
+            ...prev,
+            slots: prev.slots.map((sl) => sl.slotAt === p.slotAt
+              ? { ...sl, entry: { id: `offline-${Date.now()}`, slotAt: p.slotAt, documentation: p.documentation, execution: p.execution, reason: p.reason, createdAt: new Date().toISOString() } }
+              : sl),
+          } : prev);
+          setDocumenting(null);
+        }}
       />
     </ScrollView>
   );
 }
 
-function DocumentHourSheet({ slot, serviceUserName, serviceUserId, onClose, onSaved }: {
+function DocumentHourSheet({ slot, serviceUserName, serviceUserId, onClose, onSaved, onSavedOffline }: {
   slot: CareDocSlot | null;
   serviceUserName: string;
   serviceUserId?: string;
   onClose: () => void;
   onSaved: () => void;
+  onSavedOffline?: (p: { slotAt: string; documentation: string; execution: CareExecution; reason: string }) => void;
 }) {
   const [documentation, setDocumentation] = useState('');
   const [execution, setExecution] = useState<CareExecution | null>(null);
@@ -288,16 +306,31 @@ function DocumentHourSheet({ slot, serviceUserName, serviceUserId, onClose, onSa
     }
     setSaving(true);
     try {
-      await apiClient.post('/visit-notes/care-doc', {
+      const payload = {
         serviceUserId,
         slotAt: slot.slotAt,
         documentation: documentation.trim(),
         execution,
         reason,
-      });
+      };
+      await apiClient.post('/visit-notes/care-doc', payload);
       Alert.alert('Saved', 'This hour is now documented.');
       onSaved();
     } catch (e: unknown) {
+      if (isNetworkError(e)) {
+        await enqueue({
+          method: 'post',
+          url: '/visit-notes/care-doc',
+          body: {
+            serviceUserId, slotAt: slot.slotAt,
+            documentation: documentation.trim(), execution, reason,
+          },
+          label: 'Care note',
+        });
+        Alert.alert('Saved offline', 'No signal — this entry is stored on the phone and will sync automatically.');
+        onSavedOffline?.({ slotAt: slot.slotAt, documentation: documentation.trim(), execution: execution!, reason: reason! });
+        return;
+      }
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
       Alert.alert('Error', msg ?? 'Could not save. Please try again.');
     } finally {
