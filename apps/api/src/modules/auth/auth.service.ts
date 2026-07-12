@@ -14,15 +14,26 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { Verify2FADto } from './dto/verify-2fa.dto';
 import { BiometricChallengeDto } from './dto/biometric-challenge.dto';
-import { UserRole, UserStatus } from '@my-cura/shared-types';
+import { Country, SubscriptionTier, UserRole, UserStatus } from '@my-cura/shared-types';
 import { createPublicKey, createVerify } from 'crypto';
+import { TenantEntity } from '../tenants/entities/tenant.entity';
 
 const BCRYPT_ROUNDS = 12;
+
+export interface SignupDto {
+  agencyName: string;
+  country?: 'UK' | 'US';
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(UserEntity, 'auth') private userRepo: Repository<UserEntity>,
+    @InjectRepository(TenantEntity, 'auth') private tenantRepo: Repository<TenantEntity>,
     private tokenService: TokenService,
     private twoFactorService: TwoFactorService,
   ) {}
@@ -57,6 +68,50 @@ export class AuthService {
 
     await this.userRepo.update(user.id, { lastLoginAt: new Date() });
     return this.tokenService.generateTokenPair(user);
+  }
+
+  /** Self-serve: a new care agency creates its tenant + owner in one step. */
+  async signup(dto: SignupDto) {
+    if (!dto.agencyName?.trim()) throw new ConflictException('Agency name is required');
+    if (!dto.password || dto.password.length < 8) {
+      throw new ConflictException('Password must be at least 8 characters');
+    }
+    const email = dto.email.toLowerCase().trim();
+    const emailTaken = await this.userRepo.findOne({ where: { email } });
+    if (emailTaken) throw new ConflictException('An account with this email already exists');
+
+    const baseSlug = dto.agencyName.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'agency';
+    let slug = baseSlug;
+    for (let n = 2; await this.tenantRepo.findOne({ where: { slug } }); n++) {
+      slug = `${baseSlug}-${n}`;
+    }
+
+    const tenant = await this.tenantRepo.save(
+      this.tenantRepo.create({
+        slug,
+        name: dto.agencyName.trim(),
+        country: dto.country === 'US' ? Country.US : Country.UK,
+        subscriptionTier: SubscriptionTier.STARTER,
+        subscriptionStatus: 'trial',
+        settings: {},
+        isActive: true,
+      }),
+    );
+
+    await this.userRepo.save(
+      this.userRepo.create({
+        tenantId: tenant.id,
+        email,
+        passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
+        firstName: dto.firstName.trim(),
+        lastName: dto.lastName.trim(),
+        role: UserRole.AGENCY_OWNER,
+        status: UserStatus.ACTIVE,
+      }),
+    );
+
+    return this.login({ email, password: dto.password });
   }
 
   async register(dto: RegisterDto, tenantId: string) {

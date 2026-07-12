@@ -6,6 +6,7 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
+import { SignupPage } from './pages/auth/SignupPage';
 import { TwoFactorPage } from './pages/auth/TwoFactorPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 
@@ -26,6 +27,8 @@ import { TrainingPage } from './pages/training/TrainingPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { PoliciesPage } from './pages/policies/PoliciesPage';
 import { ImportPage } from './pages/imports/ImportPage';
+import { ExpensesPage } from './pages/expenses/ExpensesPage';
+import { RecruitmentPage } from './pages/recruitment/RecruitmentPage';
 import { WhistleblowingPage } from './pages/whistleblowing/WhistleblowingPage';
 
 // The web portal is for agency staff only; care workers, service users and
@@ -66,6 +69,7 @@ export default function App() {
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/2fa" element={<TwoFactorPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
@@ -96,6 +100,8 @@ export default function App() {
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/imports" element={<ImportPage />} />
+          <Route path="/expenses" element={<ExpensesPage />} />
+          <Route path="/recruitment" element={<RecruitmentPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

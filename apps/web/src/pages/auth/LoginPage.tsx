@@ -114,6 +114,13 @@ export function LoginPage() {
         </button>
       </form>
 
+      <p className="mt-4 text-center text-sm text-slate-500">
+        New care agency?{' '}
+        <a href="/signup" className="text-primary-500 font-medium hover:underline">
+          Start yours free
+        </a>
+      </p>
+
       {/* Divider */}
       <div className="my-6 flex items-center gap-3">
         <div className="flex-1 h-px bg-slate-200" />

@@ -1,126 +1,135 @@
-import { useAuthStore } from '../../stores/auth.store';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
-  Users, Calendar, Clock, AlertTriangle, TrendingUp,
-  Heart, Pill, CheckCircle, XCircle, ArrowUpRight,
+  Users, Calendar, AlertTriangle, Heart, Pill, CheckCircle, XCircle, Clock,
 } from 'lucide-react';
+import { useAuthStore } from '../../stores/auth.store';
+import { apiClient } from '../../services/api.client';
+import { formatDisplayDate } from '@my-cura/shared-utils';
 
-const stats = [
-  { label: 'Active Care Workers', value: '—', change: null, icon: Users, color: 'blue' },
-  { label: 'Shifts Today', value: '—', change: null, icon: Calendar, color: 'teal' },
-  { label: 'Hours Delivered (Week)', value: '—', change: null, icon: Clock, color: 'green' },
-  { label: 'Open Incidents', value: '—', change: null, icon: AlertTriangle, color: 'amber' },
-];
+interface Overview {
+  people: { activeWorkers: number; activeServiceUsers: number };
+  shifts: { todayTotal: number; todayCompleted: number; thisWeek: number };
+  medication: { givenToday: number; pendingToday: number; refusedToday: number; missedToday: number; complianceToday: number };
+  attention: { openEscalations: number; pendingLeave: number; pendingExpenses: number; trainingExpiring30d: number; openWhistleblowing: number };
+}
 
-const colorMap: Record<string, string> = {
-  blue: 'bg-primary-50 dark:bg-primary-900/30 text-primary-500',
-  teal: 'bg-secondary-50 dark:bg-secondary-900/30 text-secondary-500',
-  green: 'bg-accent-50 dark:bg-accent-900/30 text-accent-500',
-  amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-500',
-};
+interface ExpiringDoc { id: string; title: string; type: string; expiresAt: string }
 
 export function DashboardPage() {
   const { user } = useAuthStore();
 
+  const { data: o } = useQuery<Overview>({
+    queryKey: ['analytics-overview'],
+    queryFn: async () => (await apiClient.get('/analytics/overview')).data,
+    refetchInterval: 60_000,
+  });
+
+  const { data: expiring } = useQuery<ExpiringDoc[]>({
+    queryKey: ['hr-expiring'],
+    queryFn: async () => (await apiClient.get('/hr/documents/expiring?days=60')).data,
+  });
+
+  const stats = [
+    { label: 'Active Care Workers', value: o?.people.activeWorkers, icon: Users, cls: 'bg-primary-50 dark:bg-primary-900/30 text-primary-500' },
+    { label: 'Service Users', value: o?.people.activeServiceUsers, icon: Heart, cls: 'bg-secondary-50 dark:bg-secondary-900/30 text-secondary-500' },
+    { label: 'Shifts Today', value: o != null ? `${o.shifts.todayCompleted}/${o.shifts.todayTotal}` : undefined, icon: Calendar, cls: 'bg-accent-50 dark:bg-accent-900/30 text-accent-500' },
+    { label: 'Shifts This Week', value: o?.shifts.thisWeek, icon: Clock, cls: 'bg-amber-50 dark:bg-amber-900/30 text-amber-500' },
+  ];
+
+  const attention = o ? [
+    { label: 'Open care escalations', value: o.attention.openEscalations, href: '/service-users', danger: o.attention.openEscalations > 0 },
+    { label: 'Leave requests waiting', value: o.attention.pendingLeave, href: '/workers' },
+    { label: 'Expenses to review', value: o.attention.pendingExpenses, href: '/expenses' },
+    { label: 'Training expiring in 30 days', value: o.attention.trainingExpiring30d, href: '/training' },
+    { label: 'Whistleblowing reports open', value: o.attention.openWhistleblowing, href: '/whistleblowing', danger: o.attention.openWhistleblowing > 0 },
+  ] : [];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="page-header">
-          Good {getTimeOfDay()}, {user?.firstName} 👋
-        </h1>
+        <h1 className="page-header">Good {getTimeOfDay()}, {user?.firstName} 👋</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Here's what's happening in your agency today.
+          Live picture of your agency right now.
         </p>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="stat-card">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${colorMap[stat.color]}`}>
-                <stat.icon className="w-4 h-4" />
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+        {stats.map((s) => (
+          <div key={s.label} className="stat-card">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${s.cls}`}>
+              <s.icon className="w-4 h-4" />
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {stat.value}
-            </div>
-            <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              {stat.label}
-            </div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white">{s.value ?? '—'}</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's shifts */}
+        {/* Needs attention */}
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-header flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary-500" />
-              Today's Shifts
-            </h2>
-            <span className="text-xs text-primary-600 hover:underline cursor-pointer font-medium">
-              View all
-            </span>
+          <h2 className="section-header flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-amber-500" /> Needs Attention
+          </h2>
+          <div className="space-y-2">
+            {attention.map((a) => (
+              <Link key={a.label} to={a.href} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                <span className="text-sm text-slate-600 dark:text-slate-300">{a.label}</span>
+                <span className={`text-sm font-bold ${a.danger ? 'text-red-600' : a.value ? 'text-primary-600' : 'text-slate-400'}`}>
+                  {a.value}
+                </span>
+              </Link>
+            ))}
+            {!o && <p className="text-sm text-slate-400 py-6 text-center">Loading…</p>}
           </div>
-          <EmptyState icon={Calendar} label="No shifts scheduled for today" />
-        </div>
-
-        {/* Recent activity */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-header flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-secondary-500" />
-              Recent Activity
-            </h2>
-          </div>
-          <EmptyState icon={TrendingUp} label="No recent activity" />
         </div>
 
         {/* MAR compliance */}
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-header flex items-center gap-2">
-              <Pill className="w-4 h-4 text-accent-500" />
-              Medication Compliance Today
-            </h2>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle className="w-4 h-4 text-accent-500" />
-              <span className="text-slate-600 dark:text-slate-300">Given: —</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <XCircle className="w-4 h-4 text-red-400" />
-              <span className="text-slate-600 dark:text-slate-300">Missed: —</span>
-            </div>
-          </div>
-          <EmptyState icon={Pill} label="No MAR data for today" className="mt-4" />
+          <h2 className="section-header flex items-center gap-2 mb-4">
+            <Pill className="w-4 h-4 text-accent-500" /> Medication Today
+          </h2>
+          {o ? (
+            <>
+              <div className="text-4xl font-bold text-slate-900 dark:text-white mb-1">
+                {o.medication.complianceToday}%
+                <span className="text-sm font-medium text-slate-400 ml-2">compliance</span>
+              </div>
+              <div className="flex flex-wrap gap-4 mt-4 text-sm">
+                <span className="flex items-center gap-1.5 text-green-600"><CheckCircle className="w-4 h-4" /> {o.medication.givenToday} given</span>
+                <span className="flex items-center gap-1.5 text-violet-600"><Clock className="w-4 h-4" /> {o.medication.pendingToday} still due</span>
+                <span className="flex items-center gap-1.5 text-red-600"><XCircle className="w-4 h-4" /> {o.medication.refusedToday} refused</span>
+                <span className="flex items-center gap-1.5 text-amber-600"><AlertTriangle className="w-4 h-4" /> {o.medication.missedToday} missed</span>
+              </div>
+              <Link to="/mar" className="inline-block mt-4 text-xs font-medium text-primary-600 hover:underline">
+                Open the MAR charts →
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-slate-400 py-6 text-center">Loading…</p>
+          )}
         </div>
 
         {/* Expiring documents */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-header flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              Expiring Documents
-            </h2>
-          </div>
-          <EmptyState icon={Heart} label="All documents up to date" />
+        <div className="card p-6 lg:col-span-2">
+          <h2 className="section-header flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-4 h-4 text-red-500" /> Documents Expiring (60 days)
+          </h2>
+          {(expiring ?? []).length === 0 ? (
+            <p className="text-sm text-slate-400">All staff documents up to date 🎉</p>
+          ) : (
+            <div className="space-y-2">
+              {expiring!.slice(0, 6).map((d) => (
+                <div key={d.id} className="flex items-center justify-between text-sm rounded-lg px-3 py-2 bg-red-50/60 dark:bg-red-900/10">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{d.title}</span>
+                  <span className="text-red-600 font-semibold">expires {formatDisplayDate(d.expiresAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, label, className = '' }: { icon: React.ElementType; label: string; className?: string }) {
-  return (
-    <div className={`flex flex-col items-center justify-center py-8 text-slate-300 dark:text-slate-600 ${className}`}>
-      <Icon className="w-8 h-8 mb-2" />
-      <p className="text-sm text-slate-400 dark:text-slate-500">{label}</p>
     </div>
   );
 }

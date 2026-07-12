@@ -11,7 +11,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
+import { AuthService, SignupDto } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -34,6 +34,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @Post('signup')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ auth: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Create a new care agency and its owner account' })
+  signup(@Body() dto: SignupDto) {
+    return this.authService.signup(dto);
   }
 
   @Post('register')

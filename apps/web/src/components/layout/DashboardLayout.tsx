@@ -4,8 +4,10 @@ import {
   LayoutDashboard, Calendar, Users, Heart, CreditCard, Pill,
   FileText, DollarSign, BarChart3, AlertTriangle, MessageSquare,
   GraduationCap, Settings, LogOut, Bell, Menu, X, Moon, Sun,
-  ChevronRight, BookOpen, ShieldAlert, UploadCloud,
+  ChevronRight, BookOpen, ShieldAlert, UploadCloud, Briefcase,
 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../../services/api.client';
 import { useAuthStore } from '../../stores/auth.store';
 import { UserRole } from '@my-cura/shared-types';
 
@@ -24,6 +26,8 @@ const navigation = [
   { name: 'Whistleblowing', href: '/whistleblowing', icon: ShieldAlert, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
   { name: 'Messaging', href: '/messaging', icon: MessageSquare, roles: 'all' },
   { name: 'Training', href: '/training', icon: GraduationCap, roles: 'all' },
+  { name: 'Expenses', href: '/expenses', icon: CreditCard, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
+  { name: 'Recruitment', href: '/recruitment', icon: Briefcase, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
   { name: 'Data Import', href: '/imports', icon: UploadCloud, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
   { name: 'Settings', href: '/settings', icon: Settings, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
 ];
@@ -150,10 +154,7 @@ export function DashboardLayout() {
 
           <div className="flex-1" />
 
-          <button className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificationsBell />
         </header>
 
         {/* Page content */}
@@ -161,6 +162,80 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+    </div>
+  );
+}
+
+
+interface AppNotification {
+  id: string; title: string; body: string; readAt?: string; createdAt: string;
+}
+
+function NotificationsBell() {
+  const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+
+  const { data: count } = useQuery<{ count: number }>({
+    queryKey: ['notif-count'],
+    queryFn: async () => (await apiClient.get('/notifications/unread-count')).data,
+    refetchInterval: 30_000,
+  });
+
+  const { data: items } = useQuery<{ data: AppNotification[] }>({
+    queryKey: ['notif-list'],
+    queryFn: async () => (await apiClient.get('/notifications?limit=10')).data,
+    enabled: open,
+  });
+
+  const markAll = useMutation({
+    mutationFn: () => apiClient.patch('/notifications/read-all'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notif-count'] });
+      qc.invalidateQueries({ queryKey: ['notif-list'] });
+    },
+  });
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+      >
+        <Bell className="w-5 h-5" />
+        {(count?.count ?? 0) > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            {count!.count > 99 ? '99+' : count!.count}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto card p-0 z-50 shadow-xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+              <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">Notifications</p>
+              {(count?.count ?? 0) > 0 && (
+                <button className="text-xs font-medium text-primary-600 hover:underline" onClick={() => markAll.mutate()}>
+                  Mark all read
+                </button>
+              )}
+            </div>
+            {(items?.data ?? []).length === 0 ? (
+              <p className="p-6 text-sm text-slate-400 text-center">No notifications</p>
+            ) : (
+              (items?.data ?? []).map((n) => (
+                <div key={n.id} className={`px-4 py-3 border-b border-slate-50 dark:border-slate-800 ${!n.readAt ? 'bg-primary-50/50 dark:bg-primary-900/10' : ''}`}>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{n.title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{n.body}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {new Date(n.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

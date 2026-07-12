@@ -21,7 +21,7 @@ test.describe('data import wizard', () => {
     });
 
     // Step 2: fuzzy auto-mapping matched the odd header spellings
-    await expect(page.getByText('legacy-export.csv')).toBeVisible();
+    await expect(page.getByText('legacy-export.csv').first()).toBeVisible();
     await expect(page.getByText(/2 rows/)).toBeVisible();
     const firstNameRow = page.locator('tr', { hasText: 'First name' }).first();
     await expect(firstNameRow.locator('select')).toHaveValue(/[0-9]+/);
