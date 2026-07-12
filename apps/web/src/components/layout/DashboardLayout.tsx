@@ -65,7 +65,7 @@ export function DashboardLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700
+        className={`fixed inset-y-0 left-0 z-30 w-64 flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700
           transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
