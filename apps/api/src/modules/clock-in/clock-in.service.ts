@@ -109,6 +109,58 @@ export class ClockInService {
     };
   }
 
+  /**
+   * Manager clocks a worker in/out on their behalf. By default the event is
+   * stamped AT the scheduled time ("adjust the shift to match the set time"),
+   * so recorded hours equal the rostered hours. No GPS/fraud checks — it is
+   * flagged as a manual manager entry instead.
+   */
+  async managerClockEvent(
+    tenantId: string,
+    managerId: string,
+    shiftId: string,
+    eventType: ClockEventType,
+    atScheduledTime = true,
+  ) {
+    const shift = await this.shiftRepo.findOne({ where: { id: shiftId, tenantId } });
+    if (!shift) throw new NotFoundException('Shift not found');
+    if (!shift.careWorkerId) throw new BadRequestException('Assign a care worker to this shift first');
+    if (eventType === ClockEventType.CLOCK_IN && shift.status === ShiftStatus.IN_PROGRESS) {
+      throw new BadRequestException('Already clocked in');
+    }
+    if (eventType === ClockEventType.CLOCK_OUT && shift.status !== ShiftStatus.IN_PROGRESS) {
+      throw new BadRequestException('Worker is not clocked in on this shift');
+    }
+
+    const recordedAt = atScheduledTime
+      ? (eventType === ClockEventType.CLOCK_IN ? shift.scheduledStart : shift.scheduledEnd)
+      : new Date();
+
+    const event = await this.clockRepo.save(
+      this.clockRepo.create({
+        tenantId,
+        shiftId,
+        careWorkerId: shift.careWorkerId,
+        eventType,
+        recordedAt,
+        latitude: 0,
+        longitude: 0,
+        gpsAccuracy: 0,
+        gpsDistanceM: 0,
+        deviceId: `manager:${managerId}`,
+        isManual: true,
+        fraudFlag: false,
+        fraudReasons: [],
+      }),
+    );
+
+    await this.shiftRepo.update(shiftId, {
+      status: eventType === ClockEventType.CLOCK_IN ? ShiftStatus.IN_PROGRESS : ShiftStatus.COMPLETED,
+    });
+
+    return { success: true, eventId: event.id, recordedAt };
+  }
+
   async getShiftClockEvents(shiftId: string, tenantId: string) {
     return this.clockRepo.find({
       where: { shiftId, tenantId },

@@ -109,6 +109,21 @@ export function SchedulingPage() {
       toast.error(err.response?.data?.message ?? 'Failed to create shift'),
   });
 
+  const managerClock = useMutation({
+    mutationFn: (p: { shiftId: string; eventType: 'clock_in' | 'clock_out' }) =>
+      apiClient.post(`/clock-in/manager/${p.shiftId}`, { eventType: p.eventType, atScheduledTime: true }),
+    onSuccess: (_r, p) => {
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+      toast.success(
+        p.eventType === 'clock_in'
+          ? 'Worker clocked in at the scheduled start time'
+          : 'Worker clocked out at the scheduled end time',
+      );
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) =>
+      toast.error(err.response?.data?.message ?? 'Clock action failed'),
+  });
+
   const cancelShift = useMutation({
     mutationFn: (id: string) => apiClient.patch(`/shifts/${id}/cancel`),
     onSuccess: () => {
@@ -221,6 +236,24 @@ export function SchedulingPage() {
                         <Badge color={STATUS_COLOR[s.status] ?? 'gray'} dot>
                           <span className="capitalize">{s.status.replace(/_/g, ' ')}</span>
                         </Badge>
+                        {s.careWorkerId && ['assigned', 'confirmed'].includes(s.status) && (
+                          <button
+                            className="text-[10px] font-bold text-green-600 hover:underline"
+                            title="Clock the worker in at the scheduled start time"
+                            onClick={() => managerClock.mutate({ shiftId: s.id, eventType: 'clock_in' })}
+                          >
+                            Clock in
+                          </button>
+                        )}
+                        {s.status === 'in_progress' && (
+                          <button
+                            className="text-[10px] font-bold text-primary-600 hover:underline"
+                            title="Clock the worker out at the scheduled end time"
+                            onClick={() => managerClock.mutate({ shiftId: s.id, eventType: 'clock_out' })}
+                          >
+                            Clock out
+                          </button>
+                        )}
                         {!['completed', 'cancelled', 'in_progress'].includes(s.status) && (
                           <button
                             title="Cancel shift"

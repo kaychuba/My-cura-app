@@ -4,7 +4,7 @@ import {
   ActivityIndicator, ScrollView,
 } from 'react-native';
 import * as Location from 'expo-location';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { apiClient } from '../../services/api.client';
 import { ClockEventType, ShiftStatus } from '@my-cura/shared-types';
 import { isWithinRadius, haversineDistanceMetres } from '@my-cura/shared-utils';
@@ -29,6 +29,7 @@ type ClockPhase = 'idle' | 'acquiring_gps' | 'confirming' | 'submitting' | 'cloc
 export default function ClockInScreen() {
   const { shiftId } = useLocalSearchParams<{ shiftId?: string }>();
   const [shift, setShift] = useState<ActiveShift | null>(null);
+  const [todayShifts, setTodayShifts] = useState<ActiveShift[]>([]);
   const [phase, setPhase] = useState<ClockPhase>('idle');
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lon: number; accuracy: number } | null>(null);
@@ -36,22 +37,43 @@ export default function ClockInScreen() {
   const [loading, setLoading] = useState(false);
   const [clockedIn, setClockedIn] = useState(false);
 
-  useEffect(() => {
-    loadShift();
-  }, [shiftId]);
+  // Reload every time the tab opens so newly rostered shifts appear instantly
+  useFocusEffect(
+    useCallback(() => {
+      loadShift();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shiftId]),
+  );
+
+  const applyShift = (data: ActiveShift) => {
+    setShift(data);
+    if (data.status === ShiftStatus.IN_PROGRESS) {
+      setClockedIn(true);
+      setPhase('clocked_in');
+    } else {
+      setClockedIn(false);
+      setPhase('idle');
+    }
+  };
 
   const loadShift = async () => {
     setLoading(true);
     try {
-      const endpoint = shiftId ? `/shifts/${shiftId}` : '/shifts/active';
-      const { data } = await apiClient.get<ActiveShift>(endpoint);
-      setShift(data);
-      if (data.status === ShiftStatus.IN_PROGRESS) {
-        setClockedIn(true);
-        setPhase('clocked_in');
+      if (shiftId) {
+        const { data } = await apiClient.get<ActiveShift>(`/shifts/${shiftId}`);
+        applyShift(data);
+      } else {
+        // The moment a manager rosters a shift for today, it appears here.
+        const { data } = await apiClient.get<ActiveShift[]>('/shifts/mine');
+        const usable = (data ?? []).filter(
+          (s) => s.status !== ShiftStatus.CANCELLED && s.status !== ShiftStatus.COMPLETED,
+        );
+        setTodayShifts(usable);
+        if (usable.length === 1) applyShift(usable[0]);
+        else setShift(null);
       }
     } catch {
-      Alert.alert('Error', 'Could not load your shift. Please try again.');
+      Alert.alert('Error', 'Could not load your shifts. Pull to refresh or try again.');
     } finally {
       setLoading(false);
     }
@@ -105,8 +127,8 @@ export default function ClockInScreen() {
         eventType,
         latitude: gpsCoords.lat,
         longitude: gpsCoords.lon,
-        gpsAccuracy: gpsCoords.accuracy,
-        recordedAt: new Date().toISOString(),
+        accuracy: gpsCoords.accuracy,
+        timestamp: new Date().toISOString(),
         deviceId: 'mobile',
       });
 
@@ -145,14 +167,39 @@ export default function ClockInScreen() {
 
   if (!shift) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.noShiftIcon}>📋</Text>
-        <Text style={styles.noShiftTitle}>No active shift</Text>
-        <Text style={styles.noShiftSub}>You don't have a shift scheduled right now.</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go back</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {todayShifts.length === 0 ? (
+          <View style={styles.centered}>
+            <Text style={styles.noShiftIcon}>📋</Text>
+            <Text style={styles.noShiftTitle}>No shift scheduled today</Text>
+            <Text style={styles.noShiftSub}>
+              When your manager rosters you, the visit appears here ready to clock in.
+            </Text>
+            <TouchableOpacity style={styles.backButton} onPress={loadShift}>
+              <Text style={styles.backButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.noShiftTitle}>Today's shifts</Text>
+            <Text style={styles.noShiftSub}>Choose the visit you're clocking for:</Text>
+            {todayShifts.map((s) => (
+              <TouchableOpacity key={s.id} style={styles.shiftCard} onPress={() => applyShift(s)} activeOpacity={0.8}>
+                <Text style={styles.serviceUserName}>
+                  {s.serviceUser?.firstName} {s.serviceUser?.lastName}
+                </Text>
+                <Text style={styles.shiftAddress}>
+                  {formatDisplayTime(s.scheduledStart)} – {formatDisplayTime(s.scheduledEnd)}
+                  {s.status === ShiftStatus.IN_PROGRESS ? '  ·  🟢 clocked in' : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.backButton} onPress={loadShift}>
+              <Text style={styles.backButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </ScrollView>
     );
   }
 
