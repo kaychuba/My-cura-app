@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Calendar, Users, Heart, CreditCard, Pill,
   FileText, DollarSign, BarChart3, AlertTriangle, MessageSquare,
   GraduationCap, Settings, LogOut, Bell, Menu, X, Moon, Sun,
-  ChevronRight, BookOpen, ShieldAlert,
+  ChevronRight, BookOpen, ShieldAlert, UploadCloud,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 import { UserRole } from '@my-cura/shared-types';
@@ -24,6 +24,7 @@ const navigation = [
   { name: 'Whistleblowing', href: '/whistleblowing', icon: ShieldAlert, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
   { name: 'Messaging', href: '/messaging', icon: MessageSquare, roles: 'all' },
   { name: 'Training', href: '/training', icon: GraduationCap, roles: 'all' },
+  { name: 'Data Import', href: '/imports', icon: UploadCloud, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER, UserRole.MANAGER] },
   { name: 'Settings', href: '/settings', icon: Settings, roles: [UserRole.SUPER_ADMIN, UserRole.AGENCY_OWNER] },
 ];
 

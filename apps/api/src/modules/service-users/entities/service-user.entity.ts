@@ -29,6 +29,10 @@ export class ServiceUserEntity extends BaseEntity {
   @Column({ name: 'care_commenced_on', type: 'date', nullable: true })
   careCommencedOn?: string;
 
+  /** The source system's ID when migrated from other care software. */
+  @Column({ name: 'external_ref', nullable: true })
+  externalRef?: string;
+
   @Column({ name: 'hospital_contact', type: 'jsonb', nullable: true })
   hospitalContact?: { name: string; phone?: string; ward?: string };
 

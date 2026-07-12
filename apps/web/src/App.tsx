@@ -25,6 +25,7 @@ import { MessagingPage } from './pages/messaging/MessagingPage';
 import { TrainingPage } from './pages/training/TrainingPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { PoliciesPage } from './pages/policies/PoliciesPage';
+import { ImportPage } from './pages/imports/ImportPage';
 import { WhistleblowingPage } from './pages/whistleblowing/WhistleblowingPage';
 
 // The web portal is for agency staff only; care workers, service users and
@@ -94,6 +95,7 @@ export default function App() {
           <Route path="/messaging" element={<MessagingPage />} />
           <Route path="/training" element={<TrainingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/imports" element={<ImportPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

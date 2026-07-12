@@ -27,6 +27,10 @@ export class MedicationEntity extends BaseEntity {
   @Column({ type: 'enum', enum: MedicationFormulation, nullable: true })
   formulation?: MedicationFormulation;
 
+  /** The source system's ID when migrated from other care software. */
+  @Column({ name: 'external_ref', nullable: true })
+  externalRef?: string;
+
   /** PRN = "as needed" — no fixed schedule; carers give it when required. */
   @Column({ name: 'is_prn', default: false })
   isPrn: boolean;

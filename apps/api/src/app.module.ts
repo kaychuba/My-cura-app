@@ -36,6 +36,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { WhistleblowingModule } from './modules/whistleblowing/whistleblowing.module';
 import { BodyMapsModule } from './modules/body-maps/body-maps.module';
 import { PoliciesModule } from './modules/policies/policies.module';
+import { ImportsModule } from './modules/imports/imports.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { getDatabaseConfig, getAuthDatabaseConfig } from './config/database.config';
 import { DataSource } from 'typeorm';
@@ -109,6 +110,7 @@ import { TenantContextModule } from './common/tenant-context.module';
     WhistleblowingModule,
     BodyMapsModule,
     PoliciesModule,
+    ImportsModule,
   ],
 })
 export class AppModule implements NestModule {
