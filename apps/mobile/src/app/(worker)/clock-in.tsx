@@ -18,13 +18,21 @@ interface ActiveShift {
   scheduledStart: string;
   scheduledEnd: string;
   status: ShiftStatus;
-  locationAddress: string;
+  /** JSON on the shift record; formatted with formatAddress() before render. */
+  locationAddress?: string | { line1?: string; line2?: string; city?: string; postcode?: string };
   locationLat: number;
   locationLon: number;
   serviceUser: { firstName: string; lastName: string };
 }
 
 type ClockPhase = 'idle' | 'acquiring_gps' | 'confirming' | 'submitting' | 'clocked_in' | 'clocked_out';
+
+/** The API stores the address as structured JSON; render it as one line. */
+function formatAddress(a: ActiveShift['locationAddress']): string {
+  if (!a) return '';
+  if (typeof a === 'string') return a;
+  return [a.line1, a.line2, a.city, a.postcode].filter(Boolean).join(', ');
+}
 
 export default function ClockInScreen() {
   const { shiftId } = useLocalSearchParams<{ shiftId?: string }>();
@@ -211,7 +219,7 @@ export default function ClockInScreen() {
         <Text style={styles.serviceUserName}>
           {shift.serviceUser.firstName} {shift.serviceUser.lastName}
         </Text>
-        <Text style={styles.shiftAddress}>{shift.locationAddress}</Text>
+        <Text style={styles.shiftAddress}>{formatAddress(shift.locationAddress)}</Text>
         <View style={styles.shiftTimes}>
           <View style={styles.shiftTime}>
             <Text style={styles.shiftTimeLabel}>Start</Text>
