@@ -106,6 +106,10 @@ export default function WorkerLayout() {
         <Tabs.Screen name="notifications" options={{ href: null, headerTitle: 'Notifications' }} />
         <Tabs.Screen name="care-plan" options={{ href: null, headerTitle: 'Care Plan' }} />
         <Tabs.Screen name="su-profile" options={{ href: null, headerTitle: 'Service User Profile' }} />
+        <Tabs.Screen name="leave" options={{ href: null, headerTitle: 'Leave' }} />
+        <Tabs.Screen name="payslips" options={{ href: null, headerTitle: 'My Payslips' }} />
+        <Tabs.Screen name="expenses" options={{ href: null, headerTitle: 'Expenses' }} />
+        <Tabs.Screen name="my-training" options={{ href: null, headerTitle: 'My Training' }} />
       </Tabs>
 
       <QuickMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
