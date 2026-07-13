@@ -14,10 +14,11 @@ allowBuilds:
   '@swc/core': true
   bcrypt: true
   canvas: true
-  dtrace-provider: set this to true or false
+  dtrace-provider: false
   esbuild: true
   less: true
   msgpackr-extract: true
   nx: true
   protobufjs: true
+  puppeteer: true
   unrs-resolver: true

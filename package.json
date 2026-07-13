@@ -12,16 +12,6 @@
     "lint": "nx run-many --target=lint --all",
     "typecheck": "nx run-many --target=typecheck --all"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "less",
-      "unrs-resolver",
-      "@swc/core",
-      "esbuild",
-      "puppeteer"
-    ]
-  },
   "devDependencies": {
     "@nx/eslint": "^23.0.1",
     "@nx/jest": "^23.0.1",
