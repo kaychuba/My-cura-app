@@ -53,14 +53,29 @@ services:
       JWT_SECRET: ${JWT_SECRET:?}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+      ENCRYPTION_KEY_VERSION: ${ENCRYPTION_KEY_VERSION:-1}
+      ENCRYPTION_KEYS_RETIRED: ${ENCRYPTION_KEYS_RETIRED:-}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3001}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
     ports:
       - "3000:3000"
 
-  # Nightly encrypted-at-rest dumps with 30-day retention: redundancy that
-  # exists even before a managed replica is configured.
+  # Virus scanning for staff file uploads (upload-guard.util.ts streams every
+  # accepted file here before it is stored).
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      - clamdb:/var/lib/clamav
+
+  # Nightly dumps, AES-256 encrypted with BACKUP_ENCRYPTION_KEY, 30-day
+  # retention, and a webhook alert if a dump fails: redundancy that exists
+  # even before a managed replica is configured.
+  # Restore: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY \
+  #            -in mycura-<date>.dump.enc | pg_restore -d mycura
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -72,15 +87,27 @@ services:
       PGUSER: ${DB_USERNAME:?}
       PGPASSWORD: ${DB_PASSWORD:?}
       PGDATABASE: ${DB_NAME:-mycura}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
     volumes:
       - ./backups:/backups
     entrypoint: >
       sh -c 'while true; do
-        pg_dump -Fc -f "/backups/mycura-$$(date +%Y%m%d-%H%M).dump" &&
-        find /backups -name "*.dump" -mtime +30 -delete;
+        if pg_dump -Fc |
+           openssl enc -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY
+             -out "/backups/mycura-$$(date +%Y%m%d-%H%M).dump.enc"; then
+          find /backups -name "*.dump.enc" -mtime +30 -delete;
+        else
+          echo "BACKUP FAILED at $$(date -u)" >&2;
+          [ -n "$$ALERT_WEBHOOK_URL" ] &&
+            wget -q -O- --header="Content-Type: application/json"
+              --post-data="{\"text\":\"🚨 My-Cura database backup FAILED at $$(date -u)\"}"
+              "$$ALERT_WEBHOOK_URL" || true;
+        fi;
         sleep 86400;
       done'
 
 volumes:
   pgdata:
   redisdata:
+  clamdb:

@@ -5,7 +5,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  // X-Client-Platform tells the API to keep the refresh token in an
+  // HttpOnly cookie (withCredentials carries it) instead of the JSON body,
+  // so it never touches JavaScript-readable storage.
+  headers: { 'Content-Type': 'application/json', 'X-Client-Platform': 'web' },
+  withCredentials: true,
   timeout: 30000,
 });
 

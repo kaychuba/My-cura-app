@@ -216,3 +216,13 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Blocks the build on fixable CRITICAL/HIGH vulnerabilities in
+      # dependencies and IaC (Dockerfiles, compose, workflows).
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+          scanners: vuln,misconfig,secret

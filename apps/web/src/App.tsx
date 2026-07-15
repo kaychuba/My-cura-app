@@ -8,6 +8,7 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { TwoFactorPage } from './pages/auth/TwoFactorPage';
+import { MfaSetupPage } from './pages/auth/MfaSetupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 
 // Dashboard pages
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/2fa" element={<TwoFactorPage />} />
+          <Route path="/mfa-setup" element={<MfaSetupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         </Route>
 

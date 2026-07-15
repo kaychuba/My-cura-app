@@ -1,0 +1,22 @@
+# Automated dependency updates: npm packages (whole pnpm workspace),
+# GitHub Actions, and the API's Docker base image.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: "/apps/api"
+    schedule:
+      interval: weekly

@@ -6,9 +6,8 @@ import { Repository, Between, IsNull } from 'typeorm';
 import { MedicationEntity } from './entities/medication.entity';
 import { MARRecordEntity } from './entities/mar-record.entity';
 import { MARStatus, MedicationFormulation, MedicationRoute } from '@my-cura/shared-types';
-import { encrypt, decrypt } from '@my-cura/shared-utils';
+import { EncryptionService } from '../../common/security/encryption.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ConfigService } from '@nestjs/config';
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
 const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23,59,59,999); return x; };
 
@@ -106,12 +105,8 @@ export class MARService {
     @InjectRepository(MARRecordEntity)
     private marRepo: Repository<MARRecordEntity>,
     private notifications: NotificationsService,
-    private configService: ConfigService,
+    private encryption: EncryptionService,
   ) {}
-
-  private encKey(): string {
-    return this.configService.get<string>('ENCRYPTION_KEY') ?? '';
-  }
 
   async listMedications(tenantId: string, serviceUserId: string): Promise<MedicationEntity[]> {
     return this.medicationRepo.find({
@@ -235,7 +230,7 @@ export class MARService {
     record.witnessId = dto.witnessId;
     record.witnessInitials = dto.witnessInitials?.trim().toUpperCase();
     if (dto.signatureSvg) {
-      record.signatureSvgEnc = encrypt(dto.signatureSvg, this.encKey());
+      record.signatureSvgEnc = this.encryption.encrypt(dto.signatureSvg);
     }
     const saved = await this.marRepo.save(record);
 
@@ -371,10 +366,10 @@ export class MARService {
     let signatureSvgEnc: string | undefined;
     let witnessSigEnc: string | undefined;
     if (dto.signatureSvg) {
-      signatureSvgEnc = encrypt(dto.signatureSvg, this.encKey());
+      signatureSvgEnc = this.encryption.encrypt(dto.signatureSvg);
     }
     if (dto.witnessSvg) {
-      witnessSigEnc = encrypt(dto.witnessSvg, this.encKey());
+      witnessSigEnc = this.encryption.encrypt(dto.witnessSvg);
     }
 
     const record = this.marRepo.create({
@@ -503,7 +498,7 @@ export class MARService {
 
     const result = record as MARRecordEntity & { signatureSvg?: string };
     if (record.signatureSvgEnc) {
-      result.signatureSvg = decrypt(record.signatureSvgEnc, this.encKey());
+      result.signatureSvg = this.encryption.decrypt(record.signatureSvgEnc);
     }
     return result;
   }

@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { UserEntity } from '../users/entities/user.entity';
 import { TokenService } from './token.service';
 import { TwoFactorService } from './two-factor.service';
@@ -17,8 +16,10 @@ import { BiometricChallengeDto } from './dto/biometric-challenge.dto';
 import { Country, SubscriptionTier, UserRole, UserStatus } from '@my-cura/shared-types';
 import { createPublicKey, createVerify } from 'crypto';
 import { TenantEntity } from '../tenants/entities/tenant.entity';
-
-const BCRYPT_ROUNDS = 12;
+import { hashPassword, verifyPassword } from '../../common/security/password.util';
+import { EncryptionService } from '../../common/security/encryption.service';
+import { SecurityMonitorService } from '../../common/security/security-monitor.service';
+import { MFA_REQUIRED_ROLES } from '../../common/security/mfa-required.guard';
 
 export interface SignupDto {
   agencyName: string;
@@ -36,19 +37,28 @@ export class AuthService {
     @InjectRepository(TenantEntity, 'auth') private tenantRepo: Repository<TenantEntity>,
     private tokenService: TokenService,
     private twoFactorService: TwoFactorService,
+    private encryption: EncryptionService,
+    private securityMonitor: SecurityMonitorService,
   ) {}
 
   async validateLocalUser(email: string, password: string): Promise<UserEntity> {
-    const user = await this.userRepo.findOne({
-      where: { email: email.toLowerCase().trim() },
-    });
+    const normalisedEmail = email.toLowerCase().trim();
+    const user = await this.userRepo.findOne({ where: { email: normalisedEmail } });
 
     if (!user || !user.passwordHash) {
+      this.securityMonitor.record('login_failure', normalisedEmail);
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) throw new UnauthorizedException('Invalid credentials');
+    const check = await verifyPassword(password, user.passwordHash);
+    if (!check.valid) {
+      this.securityMonitor.record('login_failure', normalisedEmail);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (check.upgradedHash) {
+      // Legacy bcrypt hash verified — migrate the account to Argon2id.
+      await this.userRepo.update(user.id, { passwordHash: check.upgradedHash });
+    }
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account is not active');
@@ -67,7 +77,13 @@ export class AuthService {
     }
 
     await this.userRepo.update(user.id, { lastLoginAt: new Date() });
-    return this.tokenService.generateTokenPair(user);
+    const pair = await this.tokenService.generateTokenPair(user);
+    if (MFA_REQUIRED_ROLES.has(user.role) && !user.is2faEnabled) {
+      // Token works only for the enrollment endpoints (MfaRequiredGuard);
+      // the client must take the user straight to 2FA setup.
+      return { ...pair, mfaSetupRequired: true };
+    }
+    return pair;
   }
 
   /** Self-serve: a new care agency creates its tenant + owner in one step. */
@@ -103,7 +119,7 @@ export class AuthService {
       this.userRepo.create({
         tenantId: tenant.id,
         email,
-        passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
+        passwordHash: await hashPassword(dto.password),
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
         role: UserRole.AGENCY_OWNER,
@@ -120,7 +136,7 @@ export class AuthService {
     });
     if (existing) throw new ConflictException('Email already registered');
 
-    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    const passwordHash = await hashPassword(dto.password);
 
     const user = this.userRepo.create({
       email: dto.email.toLowerCase().trim(),
@@ -137,14 +153,30 @@ export class AuthService {
     return this.tokenService.generateTokenPair(saved);
   }
 
+  /**
+   * TOTP secrets are AES-encrypted at rest. Rows written before encryption
+   * landed hold the raw base32 secret; decrypt() rejects those (no valid GCM
+   * tag), so fall back to treating the stored value as plaintext.
+   */
+  private totpSecret(user: UserEntity): string {
+    try {
+      return this.encryption.decrypt(user.totpSecretEnc!);
+    } catch {
+      return user.totpSecretEnc!;
+    }
+  }
+
   async verify2FA(dto: Verify2FADto) {
     const userId = await this.tokenService.verifyPartialToken(dto.partialToken);
     const user = await this.userRepo.findOneOrFail({ where: { id: userId } });
 
     if (!user.totpSecretEnc) throw new UnauthorizedException('2FA not configured');
 
-    const isValid = this.twoFactorService.verifyToken(user.totpSecretEnc, dto.code);
-    if (!isValid) throw new UnauthorizedException('Invalid 2FA code');
+    const isValid = this.twoFactorService.verifyToken(this.totpSecret(user), dto.code);
+    if (!isValid) {
+      this.securityMonitor.record('login_failure', user.email);
+      throw new UnauthorizedException('Invalid 2FA code');
+    }
 
     await this.userRepo.update(user.id, { lastLoginAt: new Date() });
     return this.tokenService.generateTokenPair(user);
@@ -156,7 +188,7 @@ export class AuthService {
 
     // Store encrypted secret temporarily — confirmed on first verification
     await this.userRepo.update(userId, {
-      totpSecretEnc: secret,
+      totpSecretEnc: this.encryption.encrypt(secret),
       is2faEnabled: false,
     });
 
@@ -168,19 +200,29 @@ export class AuthService {
     const user = await this.userRepo.findOneOrFail({ where: { id: userId } });
     if (!user.totpSecretEnc) throw new NotFoundException('2FA setup not initiated');
 
-    const isValid = this.twoFactorService.verifyToken(user.totpSecretEnc, code);
+    const isValid = this.twoFactorService.verifyToken(this.totpSecret(user), code);
     if (!isValid) throw new UnauthorizedException('Invalid 2FA code — setup failed');
 
     await this.userRepo.update(userId, { is2faEnabled: true });
-    return { success: true };
+    // Fresh tokens: the pre-enrollment access token carries mfa:false and
+    // stays locked out of everything but the enrollment endpoints.
+    user.is2faEnabled = true;
+    const pair = await this.tokenService.generateTokenPair(user);
+    return { success: true, ...pair };
   }
 
   async disable2FA(userId: string, code: string) {
     const user = await this.userRepo.findOneOrFail({ where: { id: userId } });
     if (!user.is2faEnabled) throw new UnauthorizedException('2FA is not enabled');
 
-    const isValid = this.twoFactorService.verifyToken(user.totpSecretEnc!, code);
+    const isValid = this.twoFactorService.verifyToken(this.totpSecret(user), code);
     if (!isValid) throw new UnauthorizedException('Invalid 2FA code');
+
+    if (MFA_REQUIRED_ROLES.has(user.role)) {
+      throw new UnauthorizedException(
+        'MFA cannot be disabled for administrator and office-staff accounts',
+      );
+    }
 
     await this.userRepo.update(userId, { is2faEnabled: false, totpSecretEnc: null });
     return { success: true };

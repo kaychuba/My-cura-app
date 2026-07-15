@@ -6,11 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
 import { UserRole, UserStatus, AuthUser } from '@my-cura/shared-types';
 import { UserEntity } from './entities/user.entity';
-
-const BCRYPT_ROUNDS = 12;
+import { hashPassword } from '../../common/security/password.util';
 
 /** Fields that must never leave the API. */
 const SENSITIVE_FIELDS = [
@@ -123,7 +121,7 @@ export class UsersService {
     const user = this.userRepo.create({
       tenantId,
       email: dto.email.toLowerCase(),
-      passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
+      passwordHash: await hashPassword(dto.password),
       firstName: dto.firstName,
       lastName: dto.lastName,
       role: dto.role,
@@ -163,7 +161,7 @@ export class UsersService {
     const user = await this.findEntity(tenantId, id);
     if (actor.id !== id) this.assertCanManageRole(actor, user.role);
 
-    user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    user.passwordHash = await hashPassword(newPassword);
     await this.userRepo.save(user);
     return { ok: true };
   }

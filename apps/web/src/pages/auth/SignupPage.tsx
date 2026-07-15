@@ -7,7 +7,7 @@ import { useAuthStore } from '../../stores/auth.store';
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const loginWithTokens = useAuthStore((s) => s.loginWithTokens);
+  const adoptSession = useAuthStore((s) => s.adoptSession);
   const [form, setForm] = useState({
     agencyName: '', country: 'UK', firstName: '', lastName: '', email: '', password: '',
   });
@@ -26,9 +26,10 @@ export function SignupPage() {
     setBusy(true);
     try {
       const { data } = await apiClient.post('/auth/signup', form);
-      loginWithTokens(data.accessToken, data.refreshToken, data.user);
+      adoptSession(data.accessToken, data.user);
       toast.success(`Welcome — ${form.agencyName} is ready`);
-      navigate('/dashboard');
+      // Agency owners must enroll in MFA before the rest of the app opens up.
+      navigate(data.mfaSetupRequired ? '/mfa-setup' : '/dashboard');
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
       toast.error(msg ?? 'Could not create your agency');

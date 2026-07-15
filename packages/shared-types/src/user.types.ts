@@ -6,6 +6,8 @@ export interface JwtPayload {
   role: UserRole;
   tenantId: string;
   partial?: boolean;
+  /** True when the session was established with (or after) MFA enrollment. */
+  mfa?: boolean;
   iat?: number;
   exp?: number;
 }

@@ -27,6 +27,9 @@ export class TokenService {
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      // Lets MfaRequiredGuard confine staff sessions minted before MFA
+      // enrollment to the enrollment endpoints.
+      mfa: user.is2faEnabled === true,
     };
 
     const [accessToken, refreshToken] = await Promise.all([

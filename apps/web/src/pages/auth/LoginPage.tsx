@@ -26,6 +26,8 @@ export function LoginPage() {
       const result = await login(data.email, data.password);
       if (result.requires2FA) {
         navigate('/2fa', { state: { partialToken: result.partialToken } });
+      } else if (result.mfaSetupRequired) {
+        navigate('/mfa-setup');
       } else {
         navigate('/dashboard');
       }

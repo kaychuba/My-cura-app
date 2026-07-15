@@ -3,106 +3,100 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { AuthUser } from '@my-cura/shared-types';
 import { apiClient } from '../services/api.client';
 
+// The refresh token deliberately never appears in this store (or anywhere
+// JavaScript can reach): the API keeps it in an HttpOnly SameSite=Strict
+// cookie scoped to /api/v1/auth, so XSS cannot exfiltrate the session.
+
+interface LoginOutcome {
+  requires2FA?: boolean;
+  partialToken?: string;
+  /** Staff account that must enroll in MFA before using the app. */
+  mfaSetupRequired?: boolean;
+}
+
+interface TokenResponse {
+  accessToken?: string;
+  user?: AuthUser;
+  requires2FA?: boolean;
+  partialToken?: string;
+  mfaSetupRequired?: boolean;
+}
+
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  login: (email: string, password: string) => Promise<{ requires2FA?: boolean; partialToken?: string }>;
+  login: (email: string, password: string) => Promise<LoginOutcome>;
   verify2FA: (partialToken: string, code: string) => Promise<void>;
-  loginWithTokens: (accessToken: string, refreshToken: string, user: AuthUser) => void;
+  adoptSession: (accessToken: string, user: AuthUser) => void;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
       login: async (email, password) => {
         set({ isLoading: true });
         try {
-          const response = await apiClient.post<{
-            requires2FA?: boolean;
-            partialToken?: string;
-            accessToken?: string;
-            refreshToken?: string;
-            user?: AuthUser;
-          }>('/auth/login', { email, password });
+          const { data } = await apiClient.post<TokenResponse>('/auth/login', {
+            email,
+            password,
+          });
 
-          if (response.data.requires2FA) {
-            return { requires2FA: true, partialToken: response.data.partialToken };
+          if (data.requires2FA) {
+            return { requires2FA: true, partialToken: data.partialToken };
           }
 
           set({
-            accessToken: response.data.accessToken!,
-            refreshToken: response.data.refreshToken!,
-            user: response.data.user!,
+            accessToken: data.accessToken!,
+            user: data.user!,
             isAuthenticated: true,
           });
 
-          return {};
+          return data.mfaSetupRequired ? { mfaSetupRequired: true } : {};
         } finally {
           set({ isLoading: false });
         }
       },
 
       verify2FA: async (partialToken, code) => {
-        const response = await apiClient.post<{
-          accessToken: string;
-          refreshToken: string;
-          user: AuthUser;
-        }>('/auth/2fa/verify', { partialToken, code });
-
-        set({
-          accessToken: response.data.accessToken,
-          refreshToken: response.data.refreshToken,
-          user: response.data.user,
-          isAuthenticated: true,
+        const { data } = await apiClient.post<TokenResponse>('/auth/2fa/verify', {
+          partialToken,
+          code,
         });
+        set({ accessToken: data.accessToken!, user: data.user!, isAuthenticated: true });
       },
 
-      loginWithTokens: (accessToken, refreshToken, user) => {
-        set({ accessToken, refreshToken, user, isAuthenticated: true });
+      adoptSession: (accessToken, user) => {
+        set({ accessToken, user, isAuthenticated: true });
       },
 
       logout: async () => {
-        const { refreshToken } = get();
         try {
-          if (refreshToken) {
-            await apiClient.post('/auth/logout', { refreshToken });
-          }
+          // Refresh token travels via the auth cookie; body stays empty.
+          await apiClient.post('/auth/logout', {});
+        } catch {
+          // Session may already be dead server-side — clear locally regardless.
         } finally {
-          set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+          set({ user: null, accessToken: null, isAuthenticated: false });
         }
       },
 
       refreshAccessToken: async () => {
-        const { refreshToken } = get();
-        if (!refreshToken) return false;
-
         try {
-          const response = await apiClient.post<{
-            accessToken: string;
-            refreshToken: string;
-            user: AuthUser;
-          }>('/auth/refresh', { refreshToken });
-
-          set({
-            accessToken: response.data.accessToken,
-            refreshToken: response.data.refreshToken,
-            user: response.data.user,
-          });
+          const { data } = await apiClient.post<TokenResponse>('/auth/refresh', {});
+          set({ accessToken: data.accessToken!, user: data.user! });
           return true;
         } catch {
-          set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+          set({ user: null, accessToken: null, isAuthenticated: false });
           return false;
         }
       },
@@ -113,7 +107,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     },

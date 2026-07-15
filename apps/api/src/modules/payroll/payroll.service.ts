@@ -1,15 +1,14 @@
 import {
   Injectable, NotFoundException, BadRequestException, ConflictException,
 } from '@nestjs/common';
+import { EncryptionService } from '../../common/security/encryption.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, DataSource } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { PayrollPeriodEntity } from './entities/payroll-period.entity';
 import { PayrollRecordEntity } from './entities/payroll-record.entity';
 import { UKPayrollEngine } from './engines/uk-payroll.engine';
 import { USPayrollEngine } from './engines/us-payroll.engine';
 import { Country, PayrollStatus, EmploymentType } from '@my-cura/shared-types';
-import { encrypt, decrypt } from '@my-cura/shared-utils';
 
 export interface RunPayrollDto {
   periodStart: string;
@@ -48,7 +47,7 @@ export class PayrollService {
     private periodRepo: Repository<PayrollPeriodEntity>,
     @InjectRepository(PayrollRecordEntity)
     private recordRepo: Repository<PayrollRecordEntity>,
-    private readonly configService: ConfigService,
+    private readonly encryption: EncryptionService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -187,9 +186,8 @@ export class PayrollService {
       }
 
       let niNumberDecrypted: string | undefined;
-      const encKey = this.configService.get<string>('ENCRYPTION_KEY') ?? '';
       try {
-        if (worker.ni_number_enc) niNumberDecrypted = decrypt(worker.ni_number_enc, encKey);
+        if (worker.ni_number_enc) niNumberDecrypted = this.encryption.decrypt(worker.ni_number_enc);
       } catch { /* ignore */ }
       void niNumberDecrypted;
 

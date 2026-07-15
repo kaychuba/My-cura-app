@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -16,6 +17,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { UserEntity } from '../users/entities/user.entity';
 import { TenantEntity } from '../tenants/entities/tenant.entity';
 import { UsersModule } from '../users/users.module';
+import { MfaRequiredGuard } from '../../common/security/mfa-required.guard';
 
 @Module({
   imports: [
@@ -42,6 +44,9 @@ import { UsersModule } from '../users/users.module';
     JwtStrategy,
     LocalStrategy,
     GoogleStrategy,
+    // Global: admin/office tokens minted before MFA enrollment can only
+    // reach the enrollment endpoints. Registered here to share JwtModule.
+    { provide: APP_GUARD, useClass: MfaRequiredGuard },
   ],
   exports: [AuthService, TokenService, JwtModule],
 })

@@ -1,21 +1,64 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { initializeTransactionalContext, StorageDriver } from 'typeorm-transactional';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { SecurityMonitorService } from './common/security/security-monitor.service';
 
 async function bootstrap() {
   // Must run before any DataSource exists: gives every request its own
   // async-local transaction context for row-level-security enforcement.
   initializeTransactionalContext({ storageDriver: StorageDriver.ASYNC_LOCAL_STORAGE });
 
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+  // Correct client IPs for rate limiting when behind a load balancer/proxy.
+  app.set('trust proxy', 1);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          // 'unsafe-inline' is required by Swagger UI only; the API itself
+          // serves JSON, where CSP scripts never execute.
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+        },
+      },
+      strictTransportSecurity: {
+        maxAge: 15552000, // 180 days
+        includeSubDomains: true,
+      },
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'no-referrer' },
+      // noSniff (X-Content-Type-Options) and the rest of helmet's defaults stay on.
+    }),
+  );
+  app.use((_req: unknown, res: { setHeader: (k: string, v: string) => void }, next: () => void) => {
+    res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=()');
+    next();
+  });
+  app.use(cookieParser());
 
   app.enableCors({
     origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3001'],
     credentials: true,
   });
+
+  // Default error handling + security telemetry (5xx / 403 spike alerts).
+  app.useGlobalFilters(
+    new AllExceptionsFilter(app.get(SecurityMonitorService), app.getHttpAdapter()),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

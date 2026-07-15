@@ -38,12 +38,15 @@ describe('MARService', () => {
       findOne: jest.fn().mockResolvedValue(opts.med ?? medication()),
     };
     const notifications = { notifyManagers: jest.fn(), notify: jest.fn() };
-    const config = { get: jest.fn().mockReturnValue('a'.repeat(64)) };
+    const encryption = {
+      encrypt: jest.fn((v: string) => `enc:${v}`),
+      decrypt: jest.fn((v: string) => v.replace(/^enc:/, '')),
+    };
     const service = new MARService(
       medicationRepo as never,
       marRepo as never,
       notifications as never,
-      config as never,
+      encryption as never,
     );
     return { service, marRepo, notifications };
   };

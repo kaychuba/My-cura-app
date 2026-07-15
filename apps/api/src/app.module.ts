@@ -1,7 +1,8 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 
 import appConfig from './config/app.config';
@@ -42,6 +43,7 @@ import { getDatabaseConfig, getAuthDatabaseConfig } from './config/database.conf
 import { DataSource } from 'typeorm';
 import { addTransactionalDataSource } from 'typeorm-transactional';
 import { TenantContextModule } from './common/tenant-context.module';
+import { SecurityModule } from './common/security/security.module';
 
 @Module({
   imports: [
@@ -66,16 +68,16 @@ import { TenantContextModule } from './common/tenant-context.module';
     // First so its interceptor wraps all others (audit runs inside it)
     TenantContextModule,
 
+    // Encryption keyring + security-event monitoring (global providers)
+    SecurityModule,
+
+    // Global request budget per IP. Auth endpoints override this with much
+    // stricter per-route limits via @Throttle (see auth.controller.ts).
     ThrottlerModule.forRoot([
       {
-        name: 'short',
-        ttl: 60000,
-        limit: 60,
-      },
-      {
-        name: 'auth',
-        ttl: 60000,
-        limit: 5,
+        name: 'default',
+        ttl: 60_000,
+        limit: 120,
       },
     ]),
 
@@ -111,6 +113,11 @@ import { TenantContextModule } from './common/tenant-context.module';
     BodyMapsModule,
     PoliciesModule,
     ImportsModule,
+  ],
+  providers: [
+    // Enforce the rate limits on every route (without this the @Throttle
+    // decorators are inert).
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {
