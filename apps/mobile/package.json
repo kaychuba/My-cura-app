@@ -49,7 +49,7 @@
     "@babel/core": "^7.24.0",
     "@types/react": "~19.1.17",
     "@types/react-native": "^0.73.0",
-    "eas-cli": "^20.5.1",
+    "eas-cli": "^21.0.1",
     "typescript": "~5.9.3"
   }
 }
