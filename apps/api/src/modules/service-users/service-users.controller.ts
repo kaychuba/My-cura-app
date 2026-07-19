@@ -6,11 +6,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import {
   ServiceUsersService, CreateServiceUserDto, UpdateServiceUserDto, ServiceUserFilter,
+  RecordConsentDto,
 } from './service-users.service';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
-import { UserRole } from '@my-cura/shared-types';
+import { AuthUser, UserRole } from '@my-cura/shared-types';
 
 @ApiTags('service-users')
 @ApiBearerAuth()
@@ -18,6 +20,29 @@ import { UserRole } from '@my-cura/shared-types';
 @Controller('service-users')
 export class ServiceUsersController {
   constructor(private readonly serviceUsersService: ServiceUsersService) {}
+
+  @Get(':id/consents')
+  @ApiOperation({ summary: 'Consent position per type + full immutable history' })
+  listConsents(
+    @CurrentTenant() tenantId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.serviceUsersService.listConsents(tenantId, id);
+  }
+
+  @Post(':id/consents')
+  @Roles(UserRole.MANAGER)
+  @ApiOperation({
+    summary: 'Record a consent decision (granted/refused/withdrawn) — append-only',
+  })
+  recordConsent(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RecordConsentDto,
+  ) {
+    return this.serviceUsersService.recordConsent(tenantId, user.id, id, dto);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List service users with optional search/filters' })

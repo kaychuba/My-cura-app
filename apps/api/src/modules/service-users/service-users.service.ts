@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
+import { ConsentGivenBy, ConsentStatus, ConsentType } from '@my-cura/shared-types';
 import { ServiceUserEntity } from './entities/service-user.entity';
+import { ServiceUserConsentEntity } from './entities/service-user-consent.entity';
 
 export interface CreateServiceUserDto {
   firstName: string;
@@ -37,12 +39,105 @@ export interface ServiceUserFilter {
   careLevel?: ServiceUserEntity['careLevel'];
 }
 
+export interface RecordConsentDto {
+  consentType: ConsentType;
+  status: ConsentStatus;
+  givenBy: ConsentGivenBy;
+  givenByName?: string;
+  capacityAssessed?: boolean;
+  notes?: string;
+  reviewBy?: string;
+}
+
 @Injectable()
 export class ServiceUsersService {
   constructor(
     @InjectRepository(ServiceUserEntity)
     private serviceUserRepo: Repository<ServiceUserEntity>,
+    @InjectRepository(ServiceUserConsentEntity)
+    private consentRepo: Repository<ServiceUserConsentEntity>,
   ) {}
+
+  // ── Consent (append-only event log; MCA-aware) ───────────────────────────
+
+  async recordConsent(
+    tenantId: string,
+    recordedBy: string,
+    serviceUserId: string,
+    dto: RecordConsentDto,
+  ): Promise<ServiceUserConsentEntity> {
+    await this.getById(tenantId, serviceUserId); // 404 if not ours
+
+    if (!Object.values(ConsentType).includes(dto.consentType)) {
+      throw new BadRequestException('Unknown consent type');
+    }
+    if (!Object.values(ConsentStatus).includes(dto.status)) {
+      throw new BadRequestException('Unknown consent status');
+    }
+    if (!Object.values(ConsentGivenBy).includes(dto.givenBy)) {
+      throw new BadRequestException('Unknown decision-maker type');
+    }
+    // A decision made for the person by someone else must name them and
+    // reflect a capacity assessment — CQC will ask for exactly this.
+    if (dto.givenBy !== ConsentGivenBy.SELF) {
+      if (!dto.givenByName?.trim()) {
+        throw new BadRequestException(
+          'Name the attorney/deputy (or record the best-interests decision maker)',
+        );
+      }
+      if (!dto.capacityAssessed) {
+        throw new BadRequestException(
+          'A decision on someone’s behalf requires a capacity assessment to be recorded',
+        );
+      }
+    }
+    if (dto.status === ConsentStatus.WITHDRAWN) {
+      const current = await this.currentConsent(tenantId, serviceUserId, dto.consentType);
+      if (current?.status !== ConsentStatus.GRANTED) {
+        throw new BadRequestException('Only granted consent can be withdrawn');
+      }
+    }
+
+    return this.consentRepo.save(
+      this.consentRepo.create({
+        tenantId,
+        serviceUserId,
+        consentType: dto.consentType,
+        status: dto.status,
+        givenBy: dto.givenBy,
+        givenByName: dto.givenByName?.trim() || null,
+        capacityAssessed: dto.capacityAssessed ?? false,
+        notes: dto.notes,
+        reviewBy: dto.reviewBy,
+        recordedBy,
+      }),
+    );
+  }
+
+  /** Current position per consent type + the full immutable history. */
+  async listConsents(tenantId: string, serviceUserId: string) {
+    await this.getById(tenantId, serviceUserId);
+    const history = await this.consentRepo.find({
+      where: { tenantId, serviceUserId },
+      order: { recordedAt: 'DESC' },
+    });
+    const current: Partial<Record<ConsentType, ServiceUserConsentEntity>> = {};
+    for (const event of history) {
+      current[event.consentType] ??= event; // newest first — first wins
+    }
+    return { current, history };
+  }
+
+  private async currentConsent(
+    tenantId: string,
+    serviceUserId: string,
+    consentType: ConsentType,
+  ): Promise<ServiceUserConsentEntity | null> {
+    return this.consentRepo.findOne({
+      where: { tenantId, serviceUserId, consentType },
+      order: { recordedAt: 'DESC' },
+    });
+  }
 
   async list(tenantId: string, filter: ServiceUserFilter, page = 1, limit = 20) {
     const base: Record<string, unknown> = { tenantId };

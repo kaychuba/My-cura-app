@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, MapPin, AlertTriangle, Pill, FileText,
   ClipboardList, Plus, CheckCircle, CalendarCheck, Phone, Mail,
-  Users, Building2, Cross, ChevronLeft, ChevronRight, ClipboardCheck,
+  Users, Building2, Cross, ChevronLeft, ChevronRight, ClipboardCheck, ShieldCheck,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, Badge } from '@my-cura/ui-web';
@@ -98,7 +98,7 @@ export function ServiceUserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<'careplan' | 'notes' | 'caredoc'>('caredoc');
+  const [tab, setTab] = useState<'careplan' | 'notes' | 'caredoc' | 'consent'>('caredoc');
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planForm, setPlanForm] = useState({
@@ -331,6 +331,9 @@ export function ServiceUserProfilePage() {
         <TabButton active={tab === 'careplan'} onClick={() => setTab('careplan')} icon={<ClipboardList className="w-4 h-4" />}>
           Care Plan
         </TabButton>
+        <TabButton active={tab === 'consent'} onClick={() => setTab('consent')} icon={<ShieldCheck className="w-4 h-4" />}>
+          Consent
+        </TabButton>
         <TabButton active={tab === 'notes'} onClick={() => setTab('notes')} icon={<FileText className="w-4 h-4" />}>
           Visit Notes {notes?.total ? `(${notes.total})` : ''}
         </TabButton>
@@ -526,6 +529,8 @@ export function ServiceUserProfilePage() {
         </div>
       )}
 
+      {tab === 'consent' && <ConsentSection suId={id!} />}
+
       {tab === 'notes' && (
         <div className="space-y-3">
           {(notes?.data ?? []).length === 0 ? (
@@ -663,5 +668,189 @@ function Chip({ label }: { label: string }) {
     <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 capitalize">
       {label}
     </span>
+  );
+}
+
+// ── Consent (append-only, Mental-Capacity-Act aware) ─────────────────────────
+
+const CONSENT_TYPES: { key: string; label: string }[] = [
+  { key: 'care_and_support', label: 'Care & support' },
+  { key: 'data_processing', label: 'Data processing' },
+  { key: 'data_sharing', label: 'Data sharing (GP, hospital, pharmacy)' },
+  { key: 'medication', label: 'Medication administration' },
+  { key: 'photography', label: 'Photography' },
+];
+
+const GIVEN_BY_LABELS: Record<string, string> = {
+  self: 'The person themselves',
+  attorney: 'Attorney (LPA)',
+  deputy: 'Court-appointed deputy',
+  best_interests: 'Best-interests decision',
+};
+
+interface ConsentEvent {
+  id: string;
+  consentType: string;
+  status: 'granted' | 'refused' | 'withdrawn';
+  givenBy: string;
+  givenByName?: string | null;
+  capacityAssessed: boolean;
+  notes?: string | null;
+  reviewBy?: string | null;
+  recordedAt: string;
+}
+
+const CONSENT_BADGE: Record<string, 'green' | 'red' | 'amber' | 'gray'> = {
+  granted: 'green', refused: 'red', withdrawn: 'amber',
+};
+
+function ConsentSection({ suId }: { suId: string }) {
+  const qc = useQueryClient();
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({
+    consentType: 'care_and_support',
+    status: 'granted',
+    givenBy: 'self',
+    givenByName: '',
+    capacityAssessed: false,
+    notes: '',
+    reviewBy: '',
+  });
+
+  const { data } = useQuery<{ current: Record<string, ConsentEvent>; history: ConsentEvent[] }>({
+    queryKey: ['consents', suId],
+    queryFn: async () => (await apiClient.get(`/service-users/${suId}/consents`)).data,
+  });
+
+  const record = useMutation({
+    mutationFn: async () =>
+      apiClient.post(`/service-users/${suId}/consents`, {
+        ...form,
+        givenByName: form.givenByName || undefined,
+        notes: form.notes || undefined,
+        reviewBy: form.reviewBy || undefined,
+      }),
+    onSuccess: () => {
+      toast.success('Consent decision recorded');
+      setFormOpen(false);
+      void qc.invalidateQueries({ queryKey: ['consents', suId] });
+    },
+    onError: (e: { response?: { data?: { message?: string } } }) =>
+      toast.error(e.response?.data?.message ?? 'Could not record consent'),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          Every decision is stored permanently — withdrawing consent adds to the history, nothing is ever erased.
+        </p>
+        <button className="btn-primary flex items-center gap-2" onClick={() => setFormOpen(true)}>
+          <Plus className="w-4 h-4" /> Record decision
+        </button>
+      </div>
+
+      <div className="card divide-y divide-slate-100 dark:divide-slate-700">
+        {CONSENT_TYPES.map(({ key, label }) => {
+          const cur = data?.current?.[key];
+          return (
+            <div key={key} className="flex items-center justify-between px-5 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{label}</p>
+                {cur && (
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {GIVEN_BY_LABELS[cur.givenBy] ?? cur.givenBy}
+                    {cur.givenByName ? ` — ${cur.givenByName}` : ''} ·{' '}
+                    {formatDisplayDate(cur.recordedAt)}
+                    {cur.reviewBy ? ` · review by ${formatDisplayDate(cur.reviewBy)}` : ''}
+                  </p>
+                )}
+              </div>
+              {cur ? (
+                <Badge color={CONSENT_BADGE[cur.status] ?? 'gray'}>{cur.status}</Badge>
+              ) : (
+                <Badge color="gray">not recorded</Badge>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {(data?.history?.length ?? 0) > 0 && (
+        <div className="card p-5">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">History</p>
+          <div className="space-y-2">
+            {data!.history.map((h) => (
+              <div key={h.id} className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span className="font-medium">{new Date(h.recordedAt).toLocaleString('en-GB')}</span>
+                <Chip label={CONSENT_TYPES.find((t) => t.key === h.consentType)?.label ?? h.consentType} />
+                <Badge color={CONSENT_BADGE[h.status] ?? 'gray'}>{h.status}</Badge>
+                <span>{GIVEN_BY_LABELS[h.givenBy] ?? h.givenBy}{h.givenByName ? ` (${h.givenByName})` : ''}</span>
+                {h.capacityAssessed && <Chip label="capacity assessed" />}
+                {h.notes && <span className="italic">“{h.notes}”</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Record a consent decision">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">What is being decided?</label>
+            <select className="input" value={form.consentType}
+              onChange={(e) => setForm({ ...form, consentType: e.target.value })}>
+              {CONSENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Decision</label>
+            <select className="input" value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="granted">Consent given</option>
+              <option value="refused">Consent refused</option>
+              <option value="withdrawn">Consent withdrawn</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Decided by</label>
+            <select className="input" value={form.givenBy}
+              onChange={(e) => setForm({ ...form, givenBy: e.target.value })}>
+              {Object.entries(GIVEN_BY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+          {form.givenBy !== 'self' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Decision-maker's name</label>
+                <input className="input" value={form.givenByName} placeholder="e.g. Margaret Whitfield (daughter, LPA)"
+                  onChange={(e) => setForm({ ...form, givenByName: e.target.value })} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-300" checked={form.capacityAssessed}
+                  onChange={(e) => setForm({ ...form, capacityAssessed: e.target.checked })} />
+                A mental-capacity assessment was carried out for this decision
+              </label>
+            </>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Review by (optional)</label>
+            <input type="date" className="input" value={form.reviewBy}
+              onChange={(e) => setForm({ ...form, reviewBy: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes (optional)</label>
+            <textarea className="input" rows={2} value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button className="btn-secondary" onClick={() => setFormOpen(false)}>Cancel</button>
+            <button className="btn-primary" disabled={record.isPending} onClick={() => record.mutate()}>
+              {record.isPending ? 'Saving…' : 'Record decision'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
   );
 }

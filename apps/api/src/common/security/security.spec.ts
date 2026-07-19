@@ -1,4 +1,4 @@
-import { hashPassword, verifyPassword } from './password.util';
+import { assertAcceptablePassword, hashPassword, verifyPassword } from './password.util';
 import { validateUpload, UploadRejectedError } from './upload-guard.util';
 import {
   encryptWithKeyring,
@@ -32,6 +32,30 @@ describe('password hashing (Argon2id)', () => {
     const check = await verifyPassword('nope', legacy);
     expect(check).toEqual({ valid: false });
   }, 30_000);
+});
+
+describe('password acceptance policy', () => {
+  it('accepts a decent passphrase', () => {
+    expect(() => assertAcceptablePassword('correct-horse-battery', ['w@x.com'])).not.toThrow();
+  });
+
+  it('rejects the passwords attackers try first', () => {
+    expect(() => assertAcceptablePassword('password123')).toThrow(/too common/);
+    expect(() => assertAcceptablePassword('Passw0rd')).toThrow(/too common/);
+    expect(() => assertAcceptablePassword('demo1234')).toThrow(/too common/);
+  });
+
+  it('rejects passwords built from the user’s own identity', () => {
+    expect(() =>
+      assertAcceptablePassword('doris.whitfield99', ['doris.whitfield@agency.co.uk']),
+    ).toThrow(/name or email/);
+  });
+
+  it('rejects trivial and out-of-bounds shapes', () => {
+    expect(() => assertAcceptablePassword('aaaaaaaaaa')).toThrow(/repeated/);
+    expect(() => assertAcceptablePassword('short7!')).toThrow(/at least 8/);
+    expect(() => assertAcceptablePassword('x'.repeat(20) + 'y'.repeat(120))).toThrow(/at most 128/);
+  });
 });
 
 describe('versioned encryption keyring', () => {

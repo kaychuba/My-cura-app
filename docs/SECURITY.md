@@ -10,6 +10,11 @@ Data lifecycle (retention, backups, key rotation) lives in
   encryption. Legacy bcrypt hashes verify once more on login and are upgraded
   to Argon2id in place (`common/security/password.util.ts`), so the migration
   completes itself without a reset campaign.
+- **Password acceptance policy** (NCSC style — length + denylist, not
+  composition theatre): 8–128 chars, common-password denylist, no
+  single-repeated-character, must not contain the user's own name/email.
+  Enforced centrally (`assertAcceptablePassword`) at signup, registration,
+  user creation and password reset.
 - **MFA is mandatory for administrators, owners and managers**
   (`MfaRequiredGuard`, global). Tokens minted before enrollment carry
   `mfa: false` and can reach only the enrollment endpoints (`@AllowPreMfa`);
@@ -121,3 +126,27 @@ cooldown per signal:
   Docker base image (`.github/dependabot.yml`).
 - OS packages: rebuild images weekly (Dependabot bumps the base image) and
   apply unattended security upgrades on any self-managed host.
+
+### Patch-management SLAs
+
+| Severity (CVSS / vendor rating) | Deadline to patch or mitigate |
+|---|---|
+| Critical, actively exploited | 48 hours |
+| Critical / High | 7 days |
+| Medium | 30 days (next scheduled release) |
+| Low | 90 days / opportunistic |
+
+Trivy failing CI on fixable CRITICAL/HIGH enforces the 7-day lane
+mechanically — a PR cannot merge past a known fixable high-severity vuln.
+Dependabot PRs count as the patch vehicle; merging them within the SLA is
+part of the weekly routine.
+
+## 9. Tamper-resistant records
+
+The audit log (`audit_logs`) and consent history (`service_user_consents`)
+are **append-only at the database level**: `UPDATE`, `DELETE` and `TRUNCATE`
+are revoked from the application role, so neither buggy code, SQL injection,
+nor a compromised API process can rewrite history. Only the owner role
+(migrations and retention purges, never used by the API) retains write
+access. Consent decisions and withdrawals are separate events; the current
+position is derived, never edited.

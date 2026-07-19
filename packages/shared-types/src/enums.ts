@@ -220,3 +220,25 @@ export enum NotificationType {
   MESSAGE_RECEIVED = 'message_received',
   EMERGENCY_BROADCAST = 'emergency_broadcast',
 }
+
+export enum ConsentType {
+  CARE_AND_SUPPORT = 'care_and_support',
+  DATA_PROCESSING = 'data_processing',
+  DATA_SHARING = 'data_sharing',
+  MEDICATION = 'medication',
+  PHOTOGRAPHY = 'photography',
+}
+
+export enum ConsentStatus {
+  GRANTED = 'granted',
+  REFUSED = 'refused',
+  WITHDRAWN = 'withdrawn',
+}
+
+/** Who made the consent decision (Mental Capacity Act framing). */
+export enum ConsentGivenBy {
+  SELF = 'self',
+  ATTORNEY = 'attorney',
+  DEPUTY = 'deputy',
+  BEST_INTERESTS = 'best_interests',
+}

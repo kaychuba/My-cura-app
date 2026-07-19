@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { UserRole, UserStatus, AuthUser } from '@my-cura/shared-types';
 import { UserEntity } from './entities/user.entity';
-import { hashPassword } from '../../common/security/password.util';
+import { assertAcceptablePassword, hashPassword } from '../../common/security/password.util';
 
 /** Fields that must never leave the API. */
 const SENSITIVE_FIELDS = [
@@ -114,9 +114,7 @@ export class UsersService {
       where: { tenantId, email: dto.email.toLowerCase() },
     });
     if (existing) throw new BadRequestException('A user with this email already exists');
-    if (!dto.password || dto.password.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters');
-    }
+    assertAcceptablePassword(dto.password, [dto.email, dto.firstName, dto.lastName]);
 
     const user = this.userRepo.create({
       tenantId,
@@ -155,9 +153,7 @@ export class UsersService {
     id: string,
     newPassword: string,
   ): Promise<{ ok: true }> {
-    if (!newPassword || newPassword.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters');
-    }
+    assertAcceptablePassword(newPassword);
     const user = await this.findEntity(tenantId, id);
     if (actor.id !== id) this.assertCanManageRole(actor, user.role);
 

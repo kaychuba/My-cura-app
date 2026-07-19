@@ -16,7 +16,7 @@ import { BiometricChallengeDto } from './dto/biometric-challenge.dto';
 import { Country, SubscriptionTier, UserRole, UserStatus } from '@my-cura/shared-types';
 import { createPublicKey, createVerify } from 'crypto';
 import { TenantEntity } from '../tenants/entities/tenant.entity';
-import { hashPassword, verifyPassword } from '../../common/security/password.util';
+import { assertAcceptablePassword, hashPassword, verifyPassword } from '../../common/security/password.util';
 import { EncryptionService } from '../../common/security/encryption.service';
 import { SecurityMonitorService } from '../../common/security/security-monitor.service';
 import { MFA_REQUIRED_ROLES } from '../../common/security/mfa-required.guard';
@@ -89,9 +89,7 @@ export class AuthService {
   /** Self-serve: a new care agency creates its tenant + owner in one step. */
   async signup(dto: SignupDto) {
     if (!dto.agencyName?.trim()) throw new ConflictException('Agency name is required');
-    if (!dto.password || dto.password.length < 8) {
-      throw new ConflictException('Password must be at least 8 characters');
-    }
+    assertAcceptablePassword(dto.password, [dto.email, dto.firstName, dto.lastName]);
     const email = dto.email.toLowerCase().trim();
     const emailTaken = await this.userRepo.findOne({ where: { email } });
     if (emailTaken) throw new ConflictException('An account with this email already exists');
@@ -136,6 +134,7 @@ export class AuthService {
     });
     if (existing) throw new ConflictException('Email already registered');
 
+    assertAcceptablePassword(dto.password, [dto.email, dto.firstName, dto.lastName]);
     const passwordHash = await hashPassword(dto.password);
 
     const user = this.userRepo.create({

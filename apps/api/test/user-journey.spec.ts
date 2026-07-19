@@ -172,6 +172,44 @@ const asList = (x: unknown): Record<string, unknown>[] => {
     s.serviceUserId = res.body['id'] as string;
   });
 
+  it('the owner records consent — MCA rules enforced, history append-only', async () => {
+    // A best-interests decision WITHOUT a capacity assessment must be refused.
+    const rejected = await http('POST', `/service-users/${s.serviceUserId}/consents`, {
+      token: s.ownerToken,
+      body: {
+        consentType: 'care_and_support', status: 'granted',
+        givenBy: 'best_interests', givenByName: 'Dr Amara Okafor',
+      },
+    });
+    expect(rejected.status).toBe(400);
+    expect(String(rejected.body.message)).toMatch(/capacity assessment/i);
+
+    // Properly recorded: attorney consents to care, Doris herself refuses photos.
+    const care = await http('POST', `/service-users/${s.serviceUserId}/consents`, {
+      token: s.ownerToken,
+      body: {
+        consentType: 'care_and_support', status: 'granted',
+        givenBy: 'attorney', givenByName: 'Margaret Whitfield (daughter, LPA)',
+        capacityAssessed: true,
+      },
+    });
+    expect(care.status).toBe(201);
+
+    const photos = await http('POST', `/service-users/${s.serviceUserId}/consents`, {
+      token: s.ownerToken,
+      body: { consentType: 'photography', status: 'refused', givenBy: 'self' },
+    });
+    expect(photos.status).toBe(201);
+
+    const consents = await http('GET', `/service-users/${s.serviceUserId}/consents`, {
+      token: s.ownerToken,
+    });
+    expect(consents.status).toBe(200);
+    const current = consents.body['current'] as Record<string, { status: string }>;
+    expect(current['care_and_support']?.status).toBe('granted');
+    expect(current['photography']?.status).toBe('refused');
+  });
+
   it('the owner prescribes a medication and schedules today’s dose', async () => {
     const med = await http('POST', '/mar/medications', {
       token: s.ownerToken,
