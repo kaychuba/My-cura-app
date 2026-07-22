@@ -6,6 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 // server are started automatically (or reused when already running).
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   // macOS creates AppleDouble ("._foo.spec.ts") sidecars on non-APFS drives
   testIgnore: '**/._*',
   fullyParallel: false,
@@ -13,6 +14,10 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:3001',
+    // Admin session captured once in global-setup — login is rate-limited
+    // (5/15min), so per-test UI logins would 429 the suite. Specs that need
+    // a logged-out browser opt out with test.use({ storageState: LOGGED_OUT }).
+    storageState: './e2e/.auth/admin.json',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

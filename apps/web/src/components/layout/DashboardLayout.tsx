@@ -7,6 +7,7 @@ import {
   ChevronRight, BookOpen, ShieldAlert, UploadCloud, Briefcase,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Logo } from '@my-cura/ui-web';
 import { apiClient } from '../../services/api.client';
 import { useAuthStore } from '../../stores/auth.store';
 import { UserRole } from '@my-cura/shared-types';
@@ -71,10 +72,7 @@ export function DashboardLayout() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-200 dark:border-slate-700">
-          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-            <Heart className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-lg font-bold text-slate-900 dark:text-white">My-Cura</span>
+          <Logo size="sm" tone="solid" />
           <button
             className="ml-auto lg:hidden text-slate-400 hover:text-slate-600"
             onClick={() => setSidebarOpen(false)}

@@ -6,3 +6,4 @@ export * from './components/DataTable';
 export * from './components/Spinner';
 export * from './components/Avatar';
 export * from './components/StatusBadge';
+export * from './components/Logo';

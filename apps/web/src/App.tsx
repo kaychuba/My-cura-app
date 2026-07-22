@@ -3,6 +3,12 @@ import { UserRole } from '@my-cura/shared-types';
 import { useAuthStore } from './stores/auth.store';
 import { AuthLayout } from './components/layout/AuthLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
+import { MarketingLayout } from './components/layout/MarketingLayout';
+
+// Marketing pages (public)
+import { HomePage } from './pages/marketing/HomePage';
+import { PricingPage } from './pages/marketing/PricingPage';
+import { NotFoundPage } from './pages/marketing/NotFoundPage';
 
 // Auth pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -63,10 +69,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Logged-in visitors go straight to their dashboard; prospects see the
+// landing page. isAuthenticated is persisted, so this survives reloads.
+function RootRedirect() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <HomePage />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public marketing routes */}
+        <Route element={<MarketingLayout />}>
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
@@ -84,7 +104,6 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/scheduling" element={<SchedulingPage />} />
           <Route path="/workers" element={<WorkersPage />} />
@@ -105,8 +124,6 @@ export default function App() {
           <Route path="/expenses" element={<ExpensesPage />} />
           <Route path="/recruitment" element={<RecruitmentPage />} />
         </Route>
-
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

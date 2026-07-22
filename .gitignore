@@ -64,3 +64,6 @@ google-service-account.json
 # Expo local state (device registry, caches) — never commit
 .expo/
 apps/mobile/.expo/
+
+# Playwright captured sessions/secrets
+apps/web/e2e/.auth/

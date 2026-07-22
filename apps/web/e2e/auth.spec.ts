@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { login, loginAsAdmin, WORKER } from './helpers';
+import { login, loginAsAdmin, LOGGED_OUT, WORKER } from './helpers';
+
+// These tests exercise the real login UI, so they start logged out.
+test.use({ storageState: LOGGED_OUT });
 
 test.describe('authentication & portal access', () => {
   test('agency owner can log in and reach the dashboard', async ({ page }) => {

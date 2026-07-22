@@ -1,7 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login, loginAsAdmin } from './helpers';
-
-const MANAGER = { email: 'manager@demo-care.local', password: 'Demo1234!' };
+import { loginAsAdmin } from './helpers';
 
 test.describe('policies (admin)', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,10 +32,13 @@ test.describe('whistleblowing (owner-only)', () => {
     await expect(page.getByText('Confidential reports — visible only to you')).toBeVisible();
   });
 
-  test('manager is told the page is restricted to the owner', async ({ page }) => {
-    await login(page, MANAGER);
-    await expect(page).toHaveURL(/\/dashboard/);
+  // Uses the manager session captured in global-setup (managers require MFA
+  // too, and per-test UI logins would burn the rate-limit budget).
+  test('manager is told the page is restricted to the owner', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: 'e2e/.auth/manager.json' });
+    const page = await context.newPage();
     await page.goto('/whistleblowing');
     await expect(page.getByText('Restricted to the agency owner')).toBeVisible();
+    await context.close();
   });
 });

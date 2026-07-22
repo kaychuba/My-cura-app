@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PRICING_TIERS } from '@my-cura/shared-types';
 import {
   AreaChart,
   Area,
@@ -630,25 +631,6 @@ function InvoicesTab() {
   );
 }
 
-const PLAN_FEATURES: Record<string, string[]> = {
-  starter: ['Up to 10 care workers', 'Basic scheduling', 'GPS clock-in', 'Email support'],
-  professional: [
-    'Up to 100 care workers',
-    'Full MAR module',
-    'UK + US payroll engines',
-    'Incident management',
-    'Priority support',
-  ],
-  enterprise: [
-    'Unlimited care workers',
-    'AI care summaries',
-    'White-label branding',
-    'Custom integrations',
-    'Dedicated account manager',
-    'SLA guarantee',
-  ],
-};
-
 function SubscriptionTab() {
   const { data: sub, isLoading } = useQuery<Subscription | null>({
     queryKey: ['subscription'],
@@ -687,7 +669,7 @@ function SubscriptionTab() {
   }
 
   const tier = sub?.tier ?? 'starter';
-  const features = PLAN_FEATURES[tier] ?? PLAN_FEATURES.starter;
+  const features = (PRICING_TIERS.find((p) => p.tier === tier) ?? PRICING_TIERS[0]).features;
 
   return (
     <div className="space-y-6">
@@ -768,27 +750,31 @@ function SubscriptionTab() {
 
       <h3 className="font-semibold text-slate-900 dark:text-white">Available Plans</h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {(['starter', 'professional', 'enterprise'] as const).map((planTier) => {
+        {PRICING_TIERS.map((plan) => {
+          const planTier = plan.tier;
           const isCurrent = tier === planTier && !!sub;
           return (
             <div
               key={planTier}
               className={`card p-5 flex flex-col ${
-                planTier === 'professional'
+                plan.mostPopular
                   ? 'border-2 border-primary-500 dark:border-primary-400'
                   : ''
               }`}
             >
-              {planTier === 'professional' && (
+              {plan.mostPopular && (
                 <div className="text-xs font-bold text-primary-600 dark:text-primary-400 uppercase tracking-wide mb-2">
                   Most Popular
                 </div>
               )}
-              <h4 className="font-semibold text-slate-900 dark:text-white capitalize mb-3">
-                {planTier}
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-1">
+                {plan.name}
               </h4>
+              <p className="text-sm text-slate-500 mb-3">
+                {plan.monthlyPrice !== null ? `£${plan.monthlyPrice}/mo` : 'Contact sales'}
+              </p>
               <ul className="space-y-1.5 mb-4 flex-1">
-                {PLAN_FEATURES[planTier].map((f) => (
+                {plan.features.map((f) => (
                   <li
                     key={f}
                     className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"

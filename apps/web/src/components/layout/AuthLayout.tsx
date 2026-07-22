@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
+import { Logo } from '@my-cura/ui-web';
 
 export function AuthLayout() {
   return (
@@ -6,15 +7,9 @@ export function AuthLayout() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <svg className="w-6 h-6 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-              </svg>
-            </div>
-            <span className="text-3xl font-bold text-white tracking-tight">My-Cura</span>
-          </div>
+          <Link to="/" className="inline-block mb-2" aria-label="My-Cura home">
+            <Logo size="lg" tone="inverted" />
+          </Link>
           <p className="text-primary-100 text-sm">Care Management Platform</p>
         </div>
 

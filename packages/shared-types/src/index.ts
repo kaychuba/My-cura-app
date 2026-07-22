@@ -6,3 +6,4 @@ export * from './mar.types';
 export * from './care-plan.types';
 export * from './incident.types';
 export * from './notification.types';
+export * from './pricing';
