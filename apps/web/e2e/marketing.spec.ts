@@ -12,8 +12,9 @@ test.describe('public marketing pages', () => {
       'One platform. One record. Every visit.',
     );
     await expect(page).toHaveTitle(/Care Management Software/);
-    // header CTAs for a prospect
-    await expect(page.locator('header').getByRole('link', { name: 'Start free trial' })).toBeVisible();
+    // header CTAs for a prospect (OneTouch-style "Get in touch")
+    await expect(page.locator('header').getByRole('link', { name: 'Get in touch' })).toBeVisible();
+    await expect(page.locator('header').getByRole('link', { name: 'Log in' })).toBeVisible();
     // OneTouch-style sections present
     await expect(page.getByRole('heading', { name: 'My-Cura features' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Care settings we work with' })).toBeVisible();

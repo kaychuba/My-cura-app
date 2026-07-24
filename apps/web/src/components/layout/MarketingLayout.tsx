@@ -84,9 +84,13 @@ export function MarketingLayout() {
                 <Link to="/login" className="btn-ghost text-sm">
                   Log in
                 </Link>
-                <Link to="/signup" className="btn-primary text-sm whitespace-nowrap">
-                  Start free trial
-                </Link>
+                {/* OneTouch-style header CTA; mailto until a contact form exists */}
+                <a
+                  href="mailto:hello@mycura.app?subject=My-Cura%20enquiry"
+                  className="btn-primary text-sm whitespace-nowrap"
+                >
+                  Get in touch
+                </a>
               </>
             )}
           </div>
