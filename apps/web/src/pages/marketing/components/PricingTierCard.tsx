@@ -2,9 +2,6 @@ import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import type { PricingTier } from '@my-cura/shared-types';
 
-// Placeholder inbox — swap when a real sales address exists.
-const SALES_MAILTO = 'mailto:sales@mycura.app?subject=My-Cura%20Enterprise';
-
 export function PricingTierCard({
   tier,
   billing,
@@ -61,9 +58,9 @@ export function PricingTierCard({
           {tier.ctaLabel}
         </Link>
       ) : (
-        <a href={SALES_MAILTO} className="btn-secondary text-center text-sm py-2.5">
+        <Link to="/contact?type=sales" className="btn-secondary text-center text-sm py-2.5">
           {tier.ctaLabel}
-        </a>
+        </Link>
       )}
     </div>
   );

@@ -21,13 +21,52 @@ test.describe('public marketing pages', () => {
     await expect(page.getByRole('link', { name: 'Book a demo' }).first()).toBeVisible();
   });
 
-  test('header anchor links scroll to home-page sections', async ({ page }) => {
+  test('nav dropdowns deep-link to dedicated tabs on the same page', async ({ page }) => {
     await page.goto('/');
-    await page.locator('header').getByRole('link', { name: 'Features' }).click();
-    await expect(page).toHaveURL(/#features/);
+
+    // Features dropdown → Medication Management tab
+    await page.locator('header').getByRole('button', { name: 'Features' }).click();
+    await page.getByRole('menuitem', { name: 'Medication Management' }).click();
+    await expect(page).toHaveURL(/#feature-medication/);
     await expect(page.locator('#features')).toBeInViewport();
-    await page.locator('header').getByRole('link', { name: 'Who it’s for' }).click();
+    await expect(
+      page.getByRole('tab', { name: 'Medication Management' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText('Admin-scheduled doses with exact date/times')).toBeVisible();
+
+    // Who it's for dropdown → Live-in care tab
+    await page.locator('header').getByRole('button', { name: 'Who it’s for' }).click();
+    await page.getByRole('menuitem', { name: 'Live-in care' }).click();
+    await expect(page).toHaveURL(/#setting-live-in/);
     await expect(page.locator('#who-its-for')).toBeInViewport();
+    await expect(page.getByRole('tab', { name: 'Live-in care' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    // Clicking a tab directly also switches the panel — same page throughout
+    await page.getByRole('tab', { name: 'Supported living' }).click();
+    await expect(page.getByText('Per-person care plans in shared settings')).toBeVisible();
+  });
+
+  test('contact page presents the OneTouch-style form and submits an enquiry', async ({ page }) => {
+    await page.goto('/contact?type=demo');
+    await expect(page.getByRole('heading', { name: 'Get in touch' })).toBeVisible();
+    // ?type=demo preselects the enquiry type
+    await expect(page.locator('select')).toHaveValue('demo');
+    // direct-contact block alongside the form
+    await expect(page.getByText('Sales enquiries')).toBeVisible();
+    await expect(page.getByText('General enquiries')).toBeVisible();
+
+    await page.getByPlaceholder('Jane Adeyemi').fill('Test Prospect');
+    await page.getByPlaceholder('jane@youragency.co.uk').fill(`prospect-${Date.now()}@e2e.test`);
+    await page.getByPlaceholder('Willow Court Care Ltd').fill('E2E Care Agency');
+    await page
+      .locator('textarea')
+      .fill('We run 25 carers on paper rotas and would love to see a demo.');
+    await page.getByRole('button', { name: /send message/i }).click();
+
+    await expect(page.getByText("Thank you — we've got it")).toBeVisible();
   });
 
   test('pricing page shows tiers and the annual toggle applies the discount', async ({ page }) => {

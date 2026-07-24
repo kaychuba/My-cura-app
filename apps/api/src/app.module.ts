@@ -38,6 +38,7 @@ import { WhistleblowingModule } from './modules/whistleblowing/whistleblowing.mo
 import { BodyMapsModule } from './modules/body-maps/body-maps.module';
 import { PoliciesModule } from './modules/policies/policies.module';
 import { ImportsModule } from './modules/imports/imports.module';
+import { EnquiriesModule } from './modules/enquiries/enquiries.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { getDatabaseConfig, getAuthDatabaseConfig } from './config/database.config';
 import { DataSource } from 'typeorm';
@@ -113,6 +114,7 @@ import { SecurityModule } from './common/security/security.module';
     BodyMapsModule,
     PoliciesModule,
     ImportsModule,
+    EnquiriesModule,
   ],
   providers: [
     // Enforce the rate limits on every route (without this the @Throttle

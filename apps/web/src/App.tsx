@@ -8,6 +8,7 @@ import { MarketingLayout } from './components/layout/MarketingLayout';
 // Marketing pages (public)
 import { HomePage } from './pages/marketing/HomePage';
 import { PricingPage } from './pages/marketing/PricingPage';
+import { ContactPage } from './pages/marketing/ContactPage';
 import { NotFoundPage } from './pages/marketing/NotFoundPage';
 
 // Auth pages
@@ -84,6 +85,7 @@ export default function App() {
         <Route element={<MarketingLayout />}>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 

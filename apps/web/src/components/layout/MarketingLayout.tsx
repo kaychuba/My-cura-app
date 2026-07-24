@@ -1,28 +1,84 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ShieldCheck, Lock, Database, FileSearch } from 'lucide-react';
+import { ShieldCheck, Lock, Database, FileSearch, ChevronDown } from 'lucide-react';
 import { Logo } from '@my-cura/ui-web';
 import { useAuthStore } from '../../stores/auth.store';
+import { FEATURES, CARE_SETTINGS } from '../../pages/marketing/marketingData';
 
 // Section anchors live on the home page; react-router doesn't scroll to
 // hashes on its own, so the layout does it after each navigation.
-const NAV_LINKS = [
-  { to: '/', label: 'Home' },
-  { to: '/#features', label: 'Features' },
-  { to: '/#who-its-for', label: 'Who it’s for' },
-  { to: '/pricing', label: 'Pricing' },
-];
-
 function ScrollToHash() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
-    if (hash) {
-      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.scrollTo(0, 0);
-    }
+    // rAF: make sure the destination page has committed before we look for
+    // the anchor (matters when navigating from /pricing or /contact).
+    requestAnimationFrame(() => {
+      if (hash) {
+        document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        window.scrollTo(0, 0);
+      }
+    });
   }, [pathname, hash]);
   return null;
+}
+
+/**
+ * OneTouch-style dropdown: each item deep-links to its dedicated tab on the
+ * home page (`/#feature-<slug>`), which scrolls to the section and switches
+ * the tab — same page, no reload.
+ */
+function NavDropdown({
+  label,
+  items,
+}: {
+  label: string;
+  items: { slug: string; title: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+
+  // Close on route/hash change and on clicks outside.
+  useEffect(() => setOpen(false), [location]);
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+      >
+        {label}
+        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 top-full mt-1 w-64 card p-2 shadow-modal z-50"
+        >
+          {items.map((item) => (
+            <Link
+              key={item.slug}
+              role="menuitem"
+              to={`/#${label === 'Features' ? 'feature' : 'setting'}-${item.slug}`}
+              className="block px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+            >
+              {item.title}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const TRUST_BADGES = [
@@ -46,32 +102,33 @@ export function MarketingLayout() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map(({ to, label }) =>
-              to.includes('#') ? (
-                <Link
-                  key={to}
-                  to={to}
-                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-                >
-                  {label}
-                </Link>
-              ) : (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === '/'}
-                  className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'text-primary-600 dark:text-primary-300'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                    }`
-                  }
-                >
-                  {label}
-                </NavLink>
-              ),
-            )}
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-primary-600 dark:text-primary-300'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`
+              }
+            >
+              Home
+            </NavLink>
+            <NavDropdown label="Features" items={FEATURES} />
+            <NavDropdown label="Who it’s for" items={CARE_SETTINGS} />
+            <NavLink
+              to="/pricing"
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-primary-600 dark:text-primary-300'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                }`
+              }
+            >
+              Pricing
+            </NavLink>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -84,13 +141,9 @@ export function MarketingLayout() {
                 <Link to="/login" className="btn-ghost text-sm">
                   Log in
                 </Link>
-                {/* OneTouch-style header CTA; mailto until a contact form exists */}
-                <a
-                  href="mailto:hello@mycura.app?subject=My-Cura%20enquiry"
-                  className="btn-primary text-sm whitespace-nowrap"
-                >
+                <Link to="/contact" className="btn-primary text-sm whitespace-nowrap">
                   Get in touch
-                </a>
+                </Link>
               </>
             )}
           </div>
@@ -117,6 +170,7 @@ export function MarketingLayout() {
             <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
               <li><Link to="/" className="hover:text-primary-600 dark:hover:text-primary-300">Home</Link></li>
               <li><Link to="/pricing" className="hover:text-primary-600 dark:hover:text-primary-300">Pricing</Link></li>
+              <li><Link to="/contact" className="hover:text-primary-600 dark:hover:text-primary-300">Get in touch</Link></li>
               <li><Link to="/login" className="hover:text-primary-600 dark:hover:text-primary-300">Log in</Link></li>
               <li><Link to="/signup" className="hover:text-primary-600 dark:hover:text-primary-300">Start free trial</Link></li>
             </ul>

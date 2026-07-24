@@ -2,9 +2,6 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, CalendarCheck, MapPin, Pill, Users } from 'lucide-react';
 
-// Placeholder inbox — swap when a real demo-booking flow exists.
-const DEMO_MAILTO = 'mailto:hello@mycura.app?subject=My-Cura%20demo%20request';
-
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
@@ -28,9 +25,9 @@ export function HeroSection() {
             office desk to the carer's pocket.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <a href={DEMO_MAILTO} className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base">
+            <Link to="/contact?type=demo" className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base">
               Book a demo <ArrowRight className="w-4 h-4" />
-            </a>
+            </Link>
             <Link to="/signup" className="btn-secondary px-6 py-3 text-base">
               Start free trial
             </Link>
