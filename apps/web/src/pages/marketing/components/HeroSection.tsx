@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, CalendarCheck, MapPin, Pill, Users } from 'lucide-react';
 
+// Placeholder inbox — swap when a real demo-booking flow exists.
+const DEMO_MAILTO = 'mailto:hello@mycura.app?subject=My-Cura%20demo%20request';
+
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
@@ -17,19 +20,19 @@ export function HeroSection() {
         <motion.div {...fadeUp} transition={{ duration: 0.5 }}>
           <span className="badge-teal inline-block mb-4">Built for UK domiciliary care</span>
           <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 dark:text-white leading-tight tracking-tight">
-            Run your care agency from one place
+            One platform. One record. Every visit.
           </h1>
           <p className="mt-4 text-lg text-slate-600 dark:text-slate-300 max-w-xl">
-            Rostering, medication records, GPS-verified visits, payroll and CQC-ready
-            compliance — everything your office and your carers need, without the
-            paper chase.
+            My-Cura is a single digital care ecosystem for home-care agencies — rostering,
+            medication, care records, payroll and compliance managed in one place, from the
+            office desk to the carer's pocket.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Link to="/signup" className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base">
-              Start your free trial <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link to="/pricing" className="btn-ghost px-6 py-3 text-base">
-              See pricing
+            <a href={DEMO_MAILTO} className="btn-primary inline-flex items-center gap-2 px-6 py-3 text-base">
+              Book a demo <ArrowRight className="w-4 h-4" />
+            </a>
+            <Link to="/signup" className="btn-secondary px-6 py-3 text-base">
+              Start free trial
             </Link>
           </div>
           <p className="mt-3 text-sm text-slate-400">Free trial, no card needed.</p>

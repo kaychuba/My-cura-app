@@ -9,11 +9,24 @@ test.describe('public marketing pages', () => {
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(
-      'Run your care agency from one place',
+      'One platform. One record. Every visit.',
     );
     await expect(page).toHaveTitle(/Care Management Software/);
     // header CTAs for a prospect
     await expect(page.locator('header').getByRole('link', { name: 'Start free trial' })).toBeVisible();
+    // OneTouch-style sections present
+    await expect(page.getByRole('heading', { name: 'My-Cura features' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Care settings we work with' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Book a demo' }).first()).toBeVisible();
+  });
+
+  test('header anchor links scroll to home-page sections', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('header').getByRole('link', { name: 'Features' }).click();
+    await expect(page).toHaveURL(/#features/);
+    await expect(page.locator('#features')).toBeInViewport();
+    await page.locator('header').getByRole('link', { name: 'Who it’s for' }).click();
+    await expect(page.locator('#who-its-for')).toBeInViewport();
   });
 
   test('pricing page shows tiers and the annual toggle applies the discount', async ({ page }) => {

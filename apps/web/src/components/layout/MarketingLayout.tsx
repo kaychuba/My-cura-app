@@ -1,12 +1,29 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ShieldCheck, Lock, Database, FileSearch } from 'lucide-react';
 import { Logo } from '@my-cura/ui-web';
 import { useAuthStore } from '../../stores/auth.store';
 
+// Section anchors live on the home page; react-router doesn't scroll to
+// hashes on its own, so the layout does it after each navigation.
 const NAV_LINKS = [
   { to: '/', label: 'Home' },
+  { to: '/#features', label: 'Features' },
+  { to: '/#who-its-for', label: 'Who it’s for' },
   { to: '/pricing', label: 'Pricing' },
 ];
+
+function ScrollToHash() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, hash]);
+  return null;
+}
 
 const TRUST_BADGES = [
   { icon: Lock, label: 'MFA & encryption' },
@@ -20,6 +37,7 @@ export function MarketingLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-slate-900">
+      <ScrollToHash />
       {/* Header */}
       <header className="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
@@ -27,23 +45,33 @@ export function MarketingLayout() {
             <Logo size="md" tone="solid" />
           </Link>
 
-          <nav className="hidden sm:flex items-center gap-1">
-            {NAV_LINKS.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'text-primary-600 dark:text-primary-300'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
+          <nav className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map(({ to, label }) =>
+              to.includes('#') ? (
+                <Link
+                  key={to}
+                  to={to}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                >
+                  {label}
+                </Link>
+              ) : (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'text-primary-600 dark:text-primary-300'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                    }`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ),
+            )}
           </nav>
 
           <div className="flex items-center gap-2">
